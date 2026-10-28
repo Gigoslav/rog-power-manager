@@ -170,6 +170,8 @@ QWidget* SettingsDialog::createLidTab() {
 
     QList<QPair<QString, QString>> actions = {
         {"suspend", I18n::tr("lid_act_suspend")},
+        {"max_powersave", I18n::tr("lid_act_max_powersave")},
+        {"lock_max_powersave", I18n::tr("lid_act_lock_max_powersave")},
         {"turn_off_all", I18n::tr("lid_act_turn_off_all")},
         {"turn_off_screen", I18n::tr("lid_act_turn_off_screen")},
         {"lock_and_turn_off_all", I18n::tr("lid_act_lock_and_turn_off_all")},
@@ -191,22 +193,32 @@ QWidget* SettingsDialog::createLidTab() {
     setupCombo(m_lidActionBattery, lidCfg.value("action_battery").toString("suspend"));
 
     m_lidActionUsbc = new QComboBox(gbActions);
-    setupCombo(m_lidActionUsbc, lidCfg.value("action_usbc").toString("turn_off_screen"));
+    setupCombo(m_lidActionUsbc, lidCfg.value("action_usbc").toString("turn_off_all"));
 
     m_lidActionAc = new QComboBox(gbActions);
-    setupCombo(m_lidActionAc, lidCfg.value("action_ac").toString("turn_off_screen"));
+    setupCombo(m_lidActionAc, lidCfg.value("action_ac").toString("turn_off_all"));
 
     fLayout->addRow(I18n::tr("bat_label") + ":", m_lidActionBattery);
     fLayout->addRow(I18n::tr("usbc_label") + ":", m_lidActionUsbc);
     fLayout->addRow(I18n::tr("ac_label") + ":", m_lidActionAc);
     layout->addWidget(gbActions);
 
-    auto gbClam = new QGroupBox(I18n::tr("lid_group_clamshell"), w);
-    auto vClam = new QVBoxLayout(gbClam);
-    m_lidClamshell = new QCheckBox(I18n::tr("lid_clamshell_label"), gbClam);
+    auto gbOpt = new QGroupBox(I18n::tr("lid_group_options"), w);
+    auto vOpt = new QVBoxLayout(gbOpt);
+    m_lidClamshell = new QCheckBox(I18n::tr("lid_clamshell_label"), gbOpt);
     m_lidClamshell->setChecked(lidCfg.value("inhibit_when_external_monitor").toBool(true));
-    vClam->addWidget(m_lidClamshell);
-    layout->addWidget(gbClam);
+    vOpt->addWidget(m_lidClamshell);
+
+    m_lidMaxPowerSave = new QCheckBox(I18n::tr("lid_max_powersave_label"), gbOpt);
+    m_lidMaxPowerSave->setChecked(lidCfg.value("enable_max_powersave_while_closed").toBool(false));
+    vOpt->addWidget(m_lidMaxPowerSave);
+
+    auto ecoHint = new QLabel(I18n::tr("lid_max_powersave_desc"), gbOpt);
+    ecoHint->setWordWrap(true);
+    ecoHint->setStyleSheet("color: #9CA3AF; font-size: 11px; margin-left: 20px;");
+    vOpt->addWidget(ecoHint);
+
+    layout->addWidget(gbOpt);
 
     auto gbAuto = new QGroupBox(I18n::tr("lid_group_automations"), w);
     auto fAuto = new QFormLayout(gbAuto);
@@ -319,6 +331,7 @@ void SettingsDialog::saveAndApply() {
     if (m_lidActionUsbc) lid["action_usbc"] = m_lidActionUsbc->currentData().toString();
     if (m_lidActionAc) lid["action_ac"] = m_lidActionAc->currentData().toString();
     if (m_lidClamshell) lid["inhibit_when_external_monitor"] = m_lidClamshell->isChecked();
+    if (m_lidMaxPowerSave) lid["enable_max_powersave_while_closed"] = m_lidMaxPowerSave->isChecked();
     if (m_lidCmdClose) lid["command_on_close"] = m_lidCmdClose->text().trimmed();
     if (m_lidCmdOpen) lid["command_on_open"] = m_lidCmdOpen->text().trimmed();
     root["lid"] = lid;

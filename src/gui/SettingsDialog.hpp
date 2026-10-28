@@ -49,6 +49,7 @@ private:
     QComboBox *m_lidActionUsbc = nullptr;
     QComboBox *m_lidActionAc = nullptr;
     QCheckBox *m_lidClamshell = nullptr;
+    QCheckBox *m_lidMaxPowerSave = nullptr;
     QLineEdit *m_lidCmdClose = nullptr;
     QLineEdit *m_lidCmdOpen = nullptr;
 

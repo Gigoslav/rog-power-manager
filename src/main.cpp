@@ -140,7 +140,7 @@ int main(int argc, char *argv[]) {
     IdleManager idleMgr;
     controller.setIdleManager(&idleMgr);
 
-    LidManager lidMgr;
+    LidManager lidMgr(&controller);
     controller.setLidManager(&lidMgr);
 
     TrayIcon tray(&controller);

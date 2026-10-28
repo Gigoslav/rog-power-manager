@@ -2,6 +2,7 @@
 #include "Hardware.hpp"
 #include "Config.hpp"
 #include "Translations.hpp"
+#include "Controller.hpp"
 
 #include <QDBusInterface>
 #include <QDBusReply>
@@ -9,7 +10,8 @@
 #include <QProcess>
 #include <iostream>
 
-LidManager::LidManager(QObject *parent) : QObject(parent) {
+LidManager::LidManager(PowerManagerController *controller, QObject *parent)
+    : QObject(parent), m_controller(controller) {
     acquireLogindInhibitor();
 
     m_lastLidClosed = Hardware::isLidClosed();
@@ -91,13 +93,29 @@ void LidManager::handleLidChange(bool closed) {
         }
 
         QString actionKey = "action_" + state;
-        QString action = lidCfg.value(actionKey).toString(state == "battery" ? "suspend" : "turn_off_screen");
-        std::cout << "[LidManager] Executing lid close action: " << action.toStdString() << std::endl;
+        QString action = lidCfg.value(actionKey).toString(state == "battery" ? "suspend" : "turn_off_all");
+        bool forceMaxEco = lidCfg.value("enable_max_powersave_while_closed").toBool(false);
+        bool doMaxEco = (action == "max_powersave" || action == "lock_max_powersave" || (forceMaxEco && action != "suspend" && action != "hibernate"));
+        std::cout << "[LidManager] Executing lid close action: " << action.toStdString() << " (Max Eco: " << (doMaxEco ? "true" : "false") << ")" << std::endl;
 
         if (action == "suspend") {
             QProcess::startDetached("loginctl", {"suspend"});
         } else if (action == "hibernate") {
             QProcess::startDetached("loginctl", {"hibernate"});
+        } else if (doMaxEco) {
+            m_maxPowerSaveActive = true;
+            m_screenTurnedOffByLid = true;
+            m_kbdTurnedOffByLid = true;
+            m_savedKbdBrightness = Hardware::getKbdBrightness();
+            Hardware::setKbdBrightness(0);
+            QProcess::startDetached("kscreen-doctor", {"--dpms", "off"});
+            Hardware::applyHardwareTunings("battery", "power-saver");
+            Hardware::setPowerProfile("power-saver");
+            Hardware::setDisplayRefreshRate(60);
+            Hardware::setFanMode("silent");
+            if (action == "lock_max_powersave" || action == "lock" || action == "lock_and_turn_off" || action == "lock_and_turn_off_all") {
+                QProcess::startDetached("loginctl", {"lock-session"});
+            }
         } else if (action == "turn_off_all") {
             m_screenTurnedOffByLid = true;
             m_kbdTurnedOffByLid = true;
@@ -140,6 +158,13 @@ void LidManager::handleLidChange(bool closed) {
             m_kbdTurnedOffByLid = false;
             int restoreVal = (m_savedKbdBrightness > 0) ? m_savedKbdBrightness : 1;
             Hardware::setKbdBrightness(restoreVal);
+        }
+        if (m_maxPowerSaveActive) {
+            m_maxPowerSaveActive = false;
+            std::cout << "[LidManager] Resuming from Max Power-Save mode — re-applying power state." << std::endl;
+            if (m_controller) {
+                m_controller->applyState(true);
+            }
         }
 
         QString cmdOpen = lidCfg.value("command_on_open").toString();

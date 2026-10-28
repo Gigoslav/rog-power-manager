@@ -4,12 +4,15 @@
 #include <QDBusUnixFileDescriptor>
 #include <QTimer>
 
+class PowerManagerController;
+
 class LidManager : public QObject {
     Q_OBJECT
 public:
-    explicit LidManager(QObject *parent = nullptr);
+    explicit LidManager(PowerManagerController *controller = nullptr, QObject *parent = nullptr);
     ~LidManager() override;
 
+    void setController(PowerManagerController *ctrl) { m_controller = ctrl; }
     void checkLidState();
     bool isLidClosed() const { return m_lastLidClosed; }
 
@@ -24,9 +27,11 @@ private:
     void releaseLogindInhibitor();
     void handleLidChange(bool closed);
 
+    PowerManagerController *m_controller = nullptr;
     bool m_lastLidClosed = false;
     bool m_screenTurnedOffByLid = false;
     bool m_kbdTurnedOffByLid = false;
+    bool m_maxPowerSaveActive = false;
     int m_savedKbdBrightness = 1;
     QDBusUnixFileDescriptor m_inhibitorFd;
     QTimer *m_pollTimer = nullptr;
