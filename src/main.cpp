@@ -3,6 +3,7 @@
 #include "Translations.hpp"
 #include "DBusServices.hpp"
 #include "IdleManager.hpp"
+#include "LidManager.hpp"
 #include "Controller.hpp"
 #include "TrayIcon.hpp"
 
@@ -138,6 +139,9 @@ int main(int argc, char *argv[]) {
 
     IdleManager idleMgr;
     controller.setIdleManager(&idleMgr);
+
+    LidManager lidMgr;
+    controller.setLidManager(&lidMgr);
 
     TrayIcon tray(&controller);
     tray.show();

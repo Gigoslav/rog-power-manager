@@ -487,4 +487,26 @@ void sendNotification(const QString &title, const QString &msg, const QString &i
     QProcess::startDetached("notify-send", {"-u", "low", "-a", "ROG Power Manager", "-i", icon, title, msg, "-h", "string:desktop-entry:rog-power-manager"});
 }
 
+bool isLidClosed() {
+    QFile f("/proc/acpi/button/lid/LID0/state");
+    if (f.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        QString s = QString::fromUtf8(f.readAll());
+        return s.contains("closed");
+    }
+    return false;
+}
+
+bool hasExternalMonitor() {
+    QDir drmDir("/sys/class/drm");
+    for (const QString &entry : drmDir.entryList(QDir::Dirs | QDir::NoDotAndDotDot)) {
+        if (entry.startsWith("card") && !entry.contains("eDP") && !entry.contains("Writeback")) {
+            QString statusPath = QString("/sys/class/drm/%1/status").arg(entry);
+            if (readSysfs(statusPath) == "connected") {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
 } // namespace Hardware

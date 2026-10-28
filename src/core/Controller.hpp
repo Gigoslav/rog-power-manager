@@ -4,6 +4,8 @@
 #include "IdleManager.hpp"
 #include <QObject>
 
+class LidManager;
+
 class PowerManagerController : public QObject {
     Q_OBJECT
 public:
@@ -21,6 +23,8 @@ public:
     Hardware::PanelInfo cachedPanel() const { return m_cachedPanel; }
 
     void setIdleManager(IdleManager *mgr) { m_idleMgr = mgr; }
+    void setLidManager(LidManager *mgr) { m_lidMgr = mgr; }
+    LidManager* lidManager() const { return m_lidMgr; }
 
 signals:
     void stateApplied();
@@ -32,4 +36,5 @@ private:
     QString m_cachedProfile = "balanced";
     Hardware::PanelInfo m_cachedPanel;
     IdleManager *m_idleMgr = nullptr;
+    LidManager *m_lidMgr = nullptr;
 };

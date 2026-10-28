@@ -66,8 +66,12 @@ int toggleKbdBrightness();
 QString getCurrentPowerProfile();
 bool setPowerProfile(const QString &profile);
 
-// Refresh Rate
+// Display Refresh Rate
 bool setDisplayRefreshRate(int hz);
+
+// Lid & Displays
+bool isLidClosed();
+bool hasExternalMonitor();
 
 // Hardware Tunings
 void applyHardwareTunings(const QString &state, const QString &profile = "");

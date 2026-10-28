@@ -31,6 +31,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   - Discharging: Calculates remaining runtime (`~X.Xh remaining`) based on available capacity and real-time power draw.
   - Charging: Calculates estimated time to reach configured battery health limit (`~X.Xh to 80%`).
   - Displayed across tray menu, rich tooltip, and CLI (`--status`).
+- **Comprehensive Laptop Lid Close Management & Settings:**
+  - Added dedicated `LidManager` inhibiting systemd-logind's default `handle-lid-switch` via D-Bus to prevent unwanted OS suspends.
+  - Reactive lid state changes via UPower D-Bus (`LidIsClosed`) and immediate `/proc/acpi/button/lid/LID0/state` procfs fallback.
+  - Configurable actions per power source (`battery`, `usbc`, `ac`):
+    - `suspend` (Standby / Sleep)
+    - `turn_off_screen` (Turns off display via DPMS / turns on when opened)
+    - `lock` (Locks session via `loginctl lock-session`)
+    - `lock_and_turn_off` (Locks session and powers off screen)
+    - `hibernate` (Hibernates system)
+    - `nothing` (Keeps system running)
+  - **Clamshell Mode:** Automatically keeps the laptop awake when an external monitor (HDMI / USB-C DP) is connected.
+  - **Lid Automations & Hooks:** Dedicated GUI settings tab `💻 Zuklappen (Lid)`, custom shell commands, and execution of `~/.config/rog-power-manager/hooks.d/on_lid_close` and `on_lid_open`.
 
 ### Fixed
 - **Notification Translations & Desktop Attribution:**

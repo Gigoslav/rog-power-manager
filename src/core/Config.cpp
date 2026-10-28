@@ -74,10 +74,19 @@ QJsonObject ConfigManager::getDefaultConfig() {
     alerts["on_low_command"] = "";
     alerts["on_critical_command"] = "";
 
+    QJsonObject lid;
+    lid["action_battery"] = "suspend";
+    lid["action_usbc"] = "turn_off_screen";
+    lid["action_ac"] = "turn_off_screen";
+    lid["inhibit_when_external_monitor"] = true;
+    lid["command_on_close"] = "";
+    lid["command_on_open"] = "";
+
     QJsonObject root;
     root["profiles"] = profiles;
     root["idle"] = idle;
     root["alerts"] = alerts;
+    root["lid"] = lid;
 
     return root;
 }
@@ -95,6 +104,12 @@ void ConfigManager::load() {
         QJsonDocument doc = QJsonDocument::fromJson(file.readAll());
         if (doc.isObject()) {
             m_data = doc.object();
+            if (!m_data.contains("lid")) {
+                m_data["lid"] = getDefaultConfig().value("lid").toObject();
+                file.close();
+                save();
+                return;
+            }
             file.close();
             return;
         }

@@ -6,6 +6,7 @@
 #include <QComboBox>
 #include <QSpinBox>
 #include <QLineEdit>
+#include <QCheckBox>
 
 class SettingsDialog : public QDialog {
     Q_OBJECT
@@ -20,6 +21,7 @@ private:
     void setupUi();
     QWidget* createProfilesTab();
     QWidget* createIdleTab();
+    QWidget* createLidTab();
     QWidget* createAutomationsTab();
 
     PowerManagerController *m_controller;
@@ -41,6 +43,14 @@ private:
         QSpinBox *suspend;
     };
     QMap<QString, IdleWidgets> m_idleMap;
+
+    // Lid widgets
+    QComboBox *m_lidActionBattery = nullptr;
+    QComboBox *m_lidActionUsbc = nullptr;
+    QComboBox *m_lidActionAc = nullptr;
+    QCheckBox *m_lidClamshell = nullptr;
+    QLineEdit *m_lidCmdClose = nullptr;
+    QLineEdit *m_lidCmdOpen = nullptr;
 
     // Automations widgets
     QLineEdit *m_cmdBattery;

@@ -18,6 +18,8 @@ set(SOURCES
     src/core/Hardware.cpp
     src/core/IdleManager.hpp
     src/core/IdleManager.cpp
+    src/core/LidManager.hpp
+    src/core/LidManager.cpp
     src/core/Controller.hpp
     src/core/Controller.cpp
     src/dbus/DBusServices.hpp

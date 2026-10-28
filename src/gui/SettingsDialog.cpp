@@ -41,6 +41,7 @@ void SettingsDialog::setupUi() {
     auto tabs = new QTabWidget(this);
     tabs->addTab(createProfilesTab(), I18n::tr("tab_profiles"));
     tabs->addTab(createIdleTab(), I18n::tr("tab_idle"));
+    tabs->addTab(createLidTab(), I18n::tr("tab_lid"));
     tabs->addTab(createAutomationsTab(), I18n::tr("tab_automations"));
     mainLayout->addWidget(tabs);
 
@@ -158,6 +159,70 @@ QWidget* SettingsDialog::createIdleTab() {
     return w;
 }
 
+QWidget* SettingsDialog::createLidTab() {
+    auto w = new QWidget(this);
+    auto layout = new QVBoxLayout(w);
+
+    auto lidCfg = ConfigManager::instance().getData().value("lid").toObject();
+
+    auto gbActions = new QGroupBox(I18n::tr("lid_group_actions"), w);
+    auto fLayout = new QFormLayout(gbActions);
+
+    QList<QPair<QString, QString>> actions = {
+        {"suspend", I18n::tr("lid_act_suspend")},
+        {"turn_off_screen", I18n::tr("lid_act_turn_off_screen")},
+        {"lock", I18n::tr("lid_act_lock")},
+        {"lock_and_turn_off", I18n::tr("lid_act_lock_and_turn_off")},
+        {"hibernate", I18n::tr("lid_act_hibernate")},
+        {"nothing", I18n::tr("lid_act_nothing")}
+    };
+
+    auto setupCombo = [&](QComboBox *cb, const QString &currentVal) {
+        for (const auto &p : actions) {
+            cb->addItem(p.second, p.first);
+        }
+        int idx = cb->findData(currentVal);
+        if (idx >= 0) cb->setCurrentIndex(idx);
+    };
+
+    m_lidActionBattery = new QComboBox(gbActions);
+    setupCombo(m_lidActionBattery, lidCfg.value("action_battery").toString("suspend"));
+
+    m_lidActionUsbc = new QComboBox(gbActions);
+    setupCombo(m_lidActionUsbc, lidCfg.value("action_usbc").toString("turn_off_screen"));
+
+    m_lidActionAc = new QComboBox(gbActions);
+    setupCombo(m_lidActionAc, lidCfg.value("action_ac").toString("turn_off_screen"));
+
+    fLayout->addRow(I18n::tr("bat_label") + ":", m_lidActionBattery);
+    fLayout->addRow(I18n::tr("usbc_label") + ":", m_lidActionUsbc);
+    fLayout->addRow(I18n::tr("ac_label") + ":", m_lidActionAc);
+    layout->addWidget(gbActions);
+
+    auto gbClam = new QGroupBox(I18n::tr("lid_group_clamshell"), w);
+    auto vClam = new QVBoxLayout(gbClam);
+    m_lidClamshell = new QCheckBox(I18n::tr("lid_clamshell_label"), gbClam);
+    m_lidClamshell->setChecked(lidCfg.value("inhibit_when_external_monitor").toBool(true));
+    vClam->addWidget(m_lidClamshell);
+    layout->addWidget(gbClam);
+
+    auto gbAuto = new QGroupBox(I18n::tr("lid_group_automations"), w);
+    auto fAuto = new QFormLayout(gbAuto);
+    m_lidCmdClose = new QLineEdit(lidCfg.value("command_on_close").toString(), gbAuto);
+    m_lidCmdOpen = new QLineEdit(lidCfg.value("command_on_open").toString(), gbAuto);
+    fAuto->addRow(I18n::tr("lid_cmd_close_label"), m_lidCmdClose);
+    fAuto->addRow(I18n::tr("lid_cmd_open_label"), m_lidCmdOpen);
+
+    auto hintLabel = new QLabel(I18n::tr("lid_hooks_hint"), gbAuto);
+    hintLabel->setStyleSheet("color: #9CA3AF; font-size: 11px; margin-top: 4px;");
+    fAuto->addRow("", hintLabel);
+
+    layout->addWidget(gbAuto);
+
+    layout->addStretch();
+    return w;
+}
+
 QWidget* SettingsDialog::createAutomationsTab() {
     auto w = new QWidget(this);
     auto layout = new QVBoxLayout(w);
@@ -246,6 +311,15 @@ void SettingsDialog::saveAndApply() {
     alerts["critical_battery_percent"] = m_critPercent->value();
     alerts["on_critical_command"] = m_cmdCrit->text();
     root["alerts"] = alerts;
+
+    auto lid = root.value("lid").toObject();
+    if (m_lidActionBattery) lid["action_battery"] = m_lidActionBattery->currentData().toString();
+    if (m_lidActionUsbc) lid["action_usbc"] = m_lidActionUsbc->currentData().toString();
+    if (m_lidActionAc) lid["action_ac"] = m_lidActionAc->currentData().toString();
+    if (m_lidClamshell) lid["inhibit_when_external_monitor"] = m_lidClamshell->isChecked();
+    if (m_lidCmdClose) lid["command_on_close"] = m_lidCmdClose->text().trimmed();
+    if (m_lidCmdOpen) lid["command_on_open"] = m_lidCmdOpen->text().trimmed();
+    root["lid"] = lid;
 
     ConfigManager::instance().setData(root);
 
