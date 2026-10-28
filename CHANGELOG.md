@@ -17,6 +17,25 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
     - `src/gui/SettingsDialog` & `AboutDialog`: Modern dark-theme configuration and system status dialogs.
   - Single binary under 1 MB, startup in under 15ms, and reduced memory footprint.
   - Python version preserved in `legacy/python/`.
+- **Active Profile Visual Indicators:**
+  - Dynamic 64x64 tray badge includes a real-time status indicator dot (🔴 Coral/Red for Performance, 🔵 Sky-Blue for Balanced, 🟢 Mint/Green for Power-Saver).
+  - Prominent menu header displaying active profile and refresh rate.
+  - Exclusive checkable menu actions (`QActionGroup`) reflecting active profile state.
+- **Hardware Turbo/Max Fan Curves:**
+  - Dynamic discovery of `asus_custom_fan_curve` sysfs hwmon device (`pwm1_enable` / `pwm2_enable`).
+  - Turbo mode activates custom PWM curve (`180-255 PWM`) with immediate acoustic feedback (>3500 RPM).
+  - Max mode drives all 8 curve points to 255 PWM (~5500 RPM full blast).
+  - Silent/Balanced restores auto firmware curve (`pwm1_enable = 2`).
+  - `detectFanMode()` queries hardware registers directly for accurate CLI and status feedback.
+- **Battery ETA Calculation:**
+  - Discharging: Calculates remaining runtime (`~X.Xh remaining`) based on available capacity and real-time power draw.
+  - Charging: Calculates estimated time to reach configured battery health limit (`~X.Xh to 80%`).
+  - Displayed across tray menu, rich tooltip, and CLI (`--status`).
+
+### Fixed
+- **Notification Translations & Desktop Attribution:**
+  - Resolved `battery_title`/`battery_msg` placeholder bug by adding canonical translation keys and Breeze-compatible icon fallbacks.
+  - Added `-h string:desktop-entry:rog-power-manager` hint for clean notification daemon association.
 
 ## [0.3.1] - 2026-10-28
 ### Added
