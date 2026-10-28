@@ -420,7 +420,7 @@ void showKdeOsdProfile(const QString &profile) {
 }
 
 void sendNotification(const QString &title, const QString &msg, const QString &icon) {
-    QProcess::startDetached("notify-send", {"-i", icon, title, msg, "-a", "rog-power-manager"});
+    QProcess::startDetached("notify-send", {"-u", "low", "-a", "ROG Power Manager", "-i", icon, title, msg, "-h", "string:desktop-entry:rog-power-manager"});
 }
 
 } // namespace Hardware

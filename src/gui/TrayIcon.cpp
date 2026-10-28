@@ -146,15 +146,18 @@ void TrayIcon::createMenu() {
     auto actGpuInt = gpuMenu->addAction(I18n::tr("gpu_int_menu"));
     connect(actGpuInt, &QAction::triggered, []() {
         QProcess::execute("supergfxctl", {"-m", "Integrated"});
+        Hardware::sendNotification(I18n::tr("gpu_super_title"), I18n::tr("gpu_super_msg").arg("Integrated"), "preferences-system-power-management");
     });
     auto actGpuHyb = gpuMenu->addAction(I18n::tr("gpu_hyb_menu"));
     connect(actGpuHyb, &QAction::triggered, []() {
         QProcess::execute("supergfxctl", {"-m", "Hybrid"});
+        Hardware::sendNotification(I18n::tr("gpu_super_title"), I18n::tr("gpu_super_msg").arg("Hybrid"), "preferences-system-power-management");
     });
     auto actGpuDed = gpuMenu->addAction(I18n::tr("gpu_ded_menu"));
     connect(actGpuDed, &QAction::triggered, []() {
         if (QFile::exists("/usr/local/bin/rog-gpu-mux-helper")) {
             QProcess::execute("sudo", {"-n", "/usr/local/bin/rog-gpu-mux-helper", "AsusMuxDgpu"});
+            Hardware::sendNotification(I18n::tr("gpu_mux_nv_title"), I18n::tr("gpu_mux_nv_msg"), "preferences-system-power-management");
         }
     });
 

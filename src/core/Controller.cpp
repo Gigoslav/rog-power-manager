@@ -70,9 +70,11 @@ void PowerManagerController::applyState(bool force) {
                   << " (Display OK: " << (displayOk ? "true" : "false") << ")" << std::endl;
     }
 
-    QString title = I18n::tr(newState + "_title");
-    QString msg = I18n::tr(newState + "_msg");
-    Hardware::sendNotification(title, msg, newState == "ac" ? "power-profile-performance" : (newState == "usbc" ? "power-profile-balanced" : "battery"));
+    QString prefix = (newState == "battery") ? "bat" : newState;
+    QString title = I18n::tr(prefix + "_title");
+    QString msg = I18n::tr(prefix + "_msg");
+    QString icon = (newState == "battery") ? "battery-good" : "ac-adapter";
+    Hardware::sendNotification(title, msg, icon);
 
     emit stateApplied();
 }
