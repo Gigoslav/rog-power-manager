@@ -4,7 +4,7 @@
 # Project: https://github.com/Gigoslav/rog-auto-power
 #
 # Selective root helper for ASUS ROG Strix GPU/MUX switching, battery charge
-# threshold control, and hardware power-saving sysfs tunables.
+# threshold control, display/keyboard brightness, and hardware power-saving sysfs tunables.
 
 set -e
 
@@ -22,8 +22,8 @@ case "$1" in
     echo 0 > /sys/devices/platform/asus-nb-wmi/gpu_mux_mode
     ;;
   Hybrid|Integrated)
-    sed -i "s/\"mode\": \"[^\"]*\"/\"mode\": \"$1\"/" /etc/supergfxd.conf
-    echo 1 > /sys/devices/platform/asus-nb-wmi/gpu_mux_mode
+    sed -i "s/\"mode\": \"[^\"]*\"/\"mode\": \"$1\"/" /etc/supergfxd.conf 2>/dev/null || true
+    echo 1 > /sys/devices/platform/asus-nb-wmi/gpu_mux_mode 2>/dev/null || true
     ;;
   charge-limit)
     val="$2"
@@ -31,6 +31,34 @@ case "$1" in
       echo "$val" > /sys/class/power_supply/BAT0/charge_control_end_threshold
     else
       echo "Invalid threshold (must be 20-100)" >&2
+      exit 1
+    fi
+    ;;
+  set-brightness)
+    pct="$2"
+    if [[ "$pct" =~ ^[0-9]+$ ]] && [ "$pct" -ge 0 ] && [ "$pct" -le 100 ]; then
+      for bl in /sys/class/backlight/*; do
+        if [ -f "$bl/max_brightness" ]; then
+          max=$(cat "$bl/max_brightness")
+          val=$(( pct * max / 100 ))
+          echo "$val" > "$bl/brightness"
+        fi
+      done
+    else
+      echo "Invalid brightness percentage (must be 0-100)" >&2
+      exit 1
+    fi
+    ;;
+  set-kbd)
+    val="$2"
+    if [[ "$val" =~ ^[0-3]$ ]]; then
+      for kbd in /sys/class/leds/*kbd_backlight*; do
+        if [ -e "$kbd/brightness" ]; then
+          echo "$val" > "$kbd/brightness"
+        fi
+      done
+    else
+      echo "Invalid keyboard backlight level (must be 0-3)" >&2
       exit 1
     fi
     ;;
@@ -56,7 +84,7 @@ case "$1" in
     iw dev wlan0 set power_save off 2>/dev/null || true
     ;;
   *)
-    echo "Usage: $0 {AsusMuxDgpu|Hybrid|Integrated|charge-limit <20-100>|power-battery|power-usbc|power-ac}" >&2
+    echo "Usage: $0 {AsusMuxDgpu|Hybrid|Integrated|charge-limit <20-100>|set-brightness <0-100>|set-kbd <0-3>|power-battery|power-usbc|power-ac}" >&2
     exit 1
     ;;
 esac

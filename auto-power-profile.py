@@ -20,15 +20,28 @@ import locale
 import subprocess
 import re
 import argparse
+import ctypes
+import json
+import copy
 
 import dbus
+import dbus.service
 from dbus.mainloop.glib import DBusGMainLoop
+from PyQt6 import sip
+from PyQt6.QtCore import Qt, QObject, QTimer, QRect
+from PyQt6.QtGui import QIcon, QPixmap, QPainter, QColor, QFont, QAction
+from PyQt6.QtWidgets import (
+    QApplication, QSystemTrayIcon, QMenu, QDialog, QTabWidget, QWidget,
+    QVBoxLayout, QHBoxLayout, QFormLayout, QGroupBox, QLabel, QLineEdit,
+    QSpinBox, QComboBox, QPushButton
+)
 
 APP_NAME = "rog-auto-power"
-APP_VERSION = "0.1.2"
+APP_VERSION = "0.3.0"
 APP_AUTHOR = "Marcel Berghaus (Gigoslav)"
+APP_ORG = "Mountainhouse Software Solutions"
 APP_EMAIL = "berghaus.marcel@gmail.com"
-APP_WEBSITE = "https://lexchaos.de"
+APP_WEBSITE = "https://mountain-house.dev"
 APP_URL = "https://github.com/Gigoslav/rog-auto-power"
 APP_LICENSE = "GPL-3.0-or-later"
 
@@ -117,11 +130,28 @@ I18N = {
         "cli_sys": "└── Davon System:{w:6.2f} W (CPU/iGPU: {apu:.1f}W | RTX 3060: {dgpu:.1f}W [{dst}] | Bildschirm/Mainboard: {rest:.1f}W)",
         "cli_prof": "Aktives Profil:  {prof}",
         "cli_panel": "Bildschirm:      {panel} ({res}) @ {rate} Hz",
-        "menu_about": "ℹ️ Über & Credits (v{ver} • Gigoslav • lexchaos.de)",
+        "menu_about": "ℹ️ About",
+        "menu_settings": "⚙️ Einstellungen & Automationen...",
+        "settings_title": "⚙️ ROG Auto-Power — Einstellungen & Automationen",
+        "tab_profiles": "⚡ Profile & Hardware",
+        "tab_idle": "⏱️ Inaktivität & Display",
+        "tab_automations": "🚀 Automationen & Hooks",
+        "btn_save": "💾 Speichern & Anwenden",
+        "btn_cancel": "Abbrechen",
+        "btn_open_hooks": "📂 Hooks-Ordner öffnen (~/.config/rog-auto-power/hooks.d)",
+        "about_win_title": "Über ROG Auto-Power",
+        "about_dev_group": "Entwickler & Organisation",
+        "about_sys_group": "Live System-Status",
+        "about_author": "Entwickler",
+        "about_org": "Organisation",
+        "about_web": "Webseite",
+        "about_repo": "GitHub Repository",
+        "about_license": "Lizenz",
+        "about_close": "Schließen",
         "about_title": "⚡ ROG Auto-Power v{ver}",
-        "about_msg": "Entwickelt von {author} • Web: {web} • Lizenz: {lic} • {url}",
+        "about_msg": "Entwickelt von {author} ({org}) • Web: {web} • Lizenz: {lic} • {url}",
         "ver_free": "Dies ist freie Software: Sie können sie unter den Bedingungen der GPLv3+ ändern und weitergeben.",
-        "ver_attr": "Autoren-Credits (Marcel Berghaus / Gigoslav • lexchaos.de) müssen in allen Kopien erhalten bleiben.",
+        "ver_attr": "Autoren-Credits (Marcel Berghaus / Mountainhouse Software Solutions • https://mountain-house.dev) müssen in allen Kopien erhalten bleiben.",
         "prof_power-saver": "Stromsparmodus",
         "prof_balanced": "Ausgeglichen",
         "prof_performance": "Höchstleistung",
@@ -131,6 +161,20 @@ I18N = {
         "st_Full": "Voll",
         "dst_suspended": "Schlafmodus",
         "dst_active": "Aktiv",
+        "menu_inhibit": "☕ System wachhalten (Präsentationsmodus)",
+        "menu_brightness": "🔆 Display-Helligkeit",
+        "menu_kbd": "⌨️ Tastaturbeleuchtung",
+        "menu_lock": "🔒 Bildschirm sperren",
+        "menu_suspend": "💤 Energiesparmodus (Standby)",
+        "menu_hibernate": "🌙 Ruhezustand (Hibernate)",
+        "inhibit_on_title": "☕ System wird wachgehalten",
+        "inhibit_on_msg": "Display-Abschaltung und Standby vorübergehend deaktiviert.",
+        "inhibit_off_title": "☕ Normaler Energiemodus",
+        "inhibit_off_msg": "Automatisches Abdunkeln und Standby wieder aktiv.",
+        "bat_low_title": "Akku schwach",
+        "bat_low_msg": "Akkustand beträgt nur noch {cap}%. Bitte Ladegerät anschließen.",
+        "bat_crit_title": "Akku kritisch leer!",
+        "bat_crit_msg": "Akkustand beträgt nur {cap}%. System wird in Kürze in den Standby versetzt!",
     },
     "en": {
         "bat_label": "Battery (Unplugged)",
@@ -198,11 +242,28 @@ I18N = {
         "cli_sys": "└── System Load: {w:6.2f} W (CPU/iGPU: {apu:.1f}W | RTX 3060: {dgpu:.1f}W [{dst}] | Display/Board: {rest:.1f}W)",
         "cli_prof": "Active Profile:  {prof}",
         "cli_panel": "Display:         {panel} ({res}) @ {rate} Hz",
-        "menu_about": "ℹ️ About & Credits (v{ver} • Gigoslav • lexchaos.de)",
+        "menu_about": "ℹ️ About",
+        "menu_settings": "⚙️ Settings & Automations...",
+        "settings_title": "⚙️ ROG Auto-Power — Settings & Automations",
+        "tab_profiles": "⚡ Profiles & Hardware",
+        "tab_idle": "⏱️ Inactivity & Display",
+        "tab_automations": "🚀 Automations & Hooks",
+        "btn_save": "💾 Save & Apply",
+        "btn_cancel": "Cancel",
+        "btn_open_hooks": "📂 Open Hooks Folder (~/.config/rog-auto-power/hooks.d)",
+        "about_win_title": "About ROG Auto-Power",
+        "about_dev_group": "Developer & Organization",
+        "about_sys_group": "Live System Status",
+        "about_author": "Developer",
+        "about_org": "Organization",
+        "about_web": "Website",
+        "about_repo": "GitHub Repository",
+        "about_license": "License",
+        "about_close": "Close",
         "about_title": "⚡ ROG Auto-Power v{ver}",
-        "about_msg": "Created by {author} • Web: {web} • License: {lic} • {url}",
+        "about_msg": "Created by {author} ({org}) • Web: {web} • License: {lic} • {url}",
         "ver_free": "This is free software: you are free to change and redistribute it under the terms of the GPLv3+.",
-        "ver_attr": "Author attribution (Marcel Berghaus / Gigoslav • lexchaos.de) must be preserved in all copies.",
+        "ver_attr": "Author attribution (Marcel Berghaus / Mountainhouse Software Solutions • https://mountain-house.dev) must be preserved in all copies.",
         "prof_power-saver": "Power-Saver",
         "prof_balanced": "Balanced",
         "prof_performance": "Performance",
@@ -212,6 +273,20 @@ I18N = {
         "st_Full": "Full",
         "dst_suspended": "suspended",
         "dst_active": "active",
+        "menu_inhibit": "☕ Keep System Awake (Presentation Mode)",
+        "menu_brightness": "🔆 Display Brightness",
+        "menu_kbd": "⌨️ Keyboard Backlight",
+        "menu_lock": "🔒 Lock Screen",
+        "menu_suspend": "💤 Sleep (Suspend)",
+        "menu_hibernate": "🌙 Hibernate",
+        "inhibit_on_title": "☕ Keeping System Awake",
+        "inhibit_on_msg": "Display blanking and auto-suspend temporarily disabled.",
+        "inhibit_off_title": "☕ Normal Power Mode",
+        "inhibit_off_msg": "Automatic dimming and sleep re-enabled.",
+        "bat_low_title": "Battery Low",
+        "bat_low_msg": "Battery level is down to {cap}%. Please connect a charger.",
+        "bat_crit_title": "Battery Critically Low!",
+        "bat_crit_msg": "Battery level is at {cap}%. System will suspend shortly to preserve data!",
     },
 }
 
@@ -312,44 +387,116 @@ def get_dgpu_status_and_watts() -> tuple[str, float]:
     return pm_state, 10.0 if pm_state == "active" else 0.0
 
 
+def get_raw_brightness() -> int:
+    for bl_dir in glob.glob("/sys/class/backlight/*"):
+        try:
+            b_file = os.path.join(bl_dir, "brightness")
+            if os.path.exists(b_file):
+                with open(b_file, "r") as f:
+                    return int(f.read().strip())
+        except Exception:
+            pass
+    return 32768
+
+
+def get_max_brightness() -> int:
+    for bl_dir in glob.glob("/sys/class/backlight/*"):
+        try:
+            m_file = os.path.join(bl_dir, "max_brightness")
+            if os.path.exists(m_file):
+                with open(m_file, "r") as f:
+                    return int(f.read().strip())
+        except Exception:
+            pass
+    return 65535
+
+
+def set_raw_brightness(val: int):
+    val = max(100, min(get_max_brightness(), int(val)))
+    for bl_dir in glob.glob("/sys/class/backlight/*"):
+        try:
+            b_file = os.path.join(bl_dir, "brightness")
+            with open(b_file, "w") as f:
+                f.write(f"{val}\n")
+        except Exception:
+            pass
+
+
+def set_brightness_pct(screen_pct: int):
+    mx = get_max_brightness()
+    target_val = int(round((screen_pct / 100.0) * mx))
+    set_raw_brightness(target_val)
+
+
+def get_kbd_brightness() -> int:
+    for k_dir in glob.glob("/sys/class/leds/*kbd_backlight*"):
+        try:
+            b_file = os.path.join(k_dir, "brightness")
+            if os.path.exists(b_file):
+                with open(b_file, "r") as f:
+                    return int(f.read().strip())
+        except Exception:
+            pass
+    return 1
+
+
+def set_kbd_brightness(level: int):
+    level = max(0, min(3, int(level)))
+    for k_dir in glob.glob("/sys/class/leds/*kbd_backlight*"):
+        try:
+            b_file = os.path.join(k_dir, "brightness")
+            with open(b_file, "w") as f:
+                f.write(f"{level}\n")
+        except Exception:
+            pass
+
+
 def get_backlight_ratio() -> float:
-    """Get screen brightness ratio (0.0 to 1.0) via KDE Solid or sysfs."""
-    try:
-        bus = dbus.SessionBus()
-        obj = bus.get_object("org.kde.Solid.PowerManagement", "/org/kde/Solid/PowerManagement/Actions/BrightnessControl")
-        iface = dbus.Interface(obj, "org.kde.Solid.PowerManagement.Actions.BrightnessControl")
-        cur = float(iface.brightness())
-        mx = float(iface.brightnessMax())
-        if mx > 0:
-            return max(0.0, min(1.0, cur / mx))
-    except Exception:
-        pass
+    """Get screen brightness ratio (0.0 to 1.0) directly from sysfs."""
+    cur = get_raw_brightness()
+    mx = get_max_brightness()
+    if mx > 0:
+        return max(0.0, min(1.0, float(cur) / float(mx)))
     return 0.5
 
 
 def set_screen_and_kbd_brightness(screen_pct: int, kbd_level: int):
-    """Set screen brightness (0-100%) and keyboard backlight (0-3) via KDE Solid D-Bus."""
-    try:
-        bus = dbus.SessionBus()
-        b_obj = bus.get_object("org.kde.Solid.PowerManagement", "/org/kde/Solid/PowerManagement/Actions/BrightnessControl")
-        b_iface = dbus.Interface(b_obj, "org.kde.Solid.PowerManagement.Actions.BrightnessControl")
-        b_max = int(b_iface.brightnessMax())
-        target_b = int(round((screen_pct / 100.0) * b_max))
-        b_iface.setBrightnessSilent(target_b)
-    except Exception as e:
-        print(f"[Brightness] Failed to set screen brightness: {e}")
-
-    try:
-        bus = dbus.SessionBus()
-        k_obj = bus.get_object("org.kde.Solid.PowerManagement", "/org/kde/Solid/PowerManagement/Actions/KeyboardBrightnessControl")
-        k_iface = dbus.Interface(k_obj, "org.kde.Solid.PowerManagement.Actions.KeyboardBrightnessControl")
-        k_iface.setKeyboardBrightnessSilent(int(kbd_level))
-    except Exception as e:
-        print(f"[Brightness] Failed to set keyboard backlight: {e}")
+    """Set screen brightness (0-100%) and keyboard backlight (0-3) directly via sysfs."""
+    set_brightness_pct(screen_pct)
+    set_kbd_brightness(kbd_level)
 
 
 def apply_hardware_tunings(state: str):
-    """Run selective root helper for PCIe Runtime PM, CPU Boost, Panel Overdrive & Wi-Fi Power Save."""
+    """Set CPU boost, Panel Overdrive, and PCIe Runtime PM directly via sysfs without sudo."""
+    # 1. Panel Overdrive (0 on battery/usbc, 1 on ac)
+    panel_od_file = "/sys/devices/platform/asus-nb-wmi/panel_od"
+    if os.path.exists(panel_od_file):
+        try:
+            with open(panel_od_file, "w") as f:
+                f.write("1\n" if state == "ac" else "0\n")
+        except Exception:
+            pass
+
+    # 2. CPU Boost (0 on battery, 1 on usbc/ac)
+    boost_file = "/sys/devices/system/cpu/cpufreq/boost"
+    if os.path.exists(boost_file):
+        try:
+            with open(boost_file, "w") as f:
+                f.write("0\n" if state == "battery" else "1\n")
+        except Exception:
+            pass
+
+    # 3. PCIe Runtime PM (auto)
+    for dev in ("0000:02:00.0", "0000:03:00.0", "0000:04:00.0", "0000:05:00.0", "0000:06:00.0", "0000:06:00.2"):
+        pci_file = f"/sys/bus/pci/devices/{dev}/power/control"
+        if os.path.exists(pci_file):
+            try:
+                with open(pci_file, "w") as f:
+                    f.write("auto\n")
+            except Exception:
+                pass
+
+    # 4. Optional background tunables via helper if available (Wi-Fi power-save & vm writeback)
     if os.path.exists("/usr/local/bin/rog-gpu-mux-helper"):
         try:
             subprocess.Popen(
@@ -359,6 +506,272 @@ def apply_hardware_tunings(state: str):
             )
         except Exception:
             pass
+
+
+# ==============================================================================
+# PowerDevil Replacement Services (D-Bus & Idle Management)
+# ==============================================================================
+
+class FreedesktopPowerManagementService(dbus.service.Object):
+    """Provides org.freedesktop.PowerManagement and Inhibit interfaces."""
+    def __init__(self, bus_name):
+        super().__init__(bus_name, "/org/freedesktop/PowerManagement")
+        self.inhibitions = {}
+        self._cookie_counter = 1000
+        self.manual_inhibit = False
+
+    @dbus.service.method("org.freedesktop.PowerManagement", out_signature="b")
+    def CanSuspend(self):
+        return True
+
+    @dbus.service.method("org.freedesktop.PowerManagement", out_signature="b")
+    def CanHibernate(self):
+        return True
+
+    @dbus.service.method("org.freedesktop.PowerManagement", out_signature="b")
+    def CanHybridSuspend(self):
+        return False
+
+    @dbus.service.method("org.freedesktop.PowerManagement", out_signature="b")
+    def CanSuspendThenHibernate(self):
+        return False
+
+    @dbus.service.method("org.freedesktop.PowerManagement")
+    def Suspend(self):
+        subprocess.Popen(["loginctl", "suspend"])
+
+    @dbus.service.method("org.freedesktop.PowerManagement")
+    def Hibernate(self):
+        subprocess.Popen(["loginctl", "hibernate"])
+
+    @dbus.service.method("org.freedesktop.PowerManagement", out_signature="b")
+    def GetPowerSaveStatus(self):
+        return get_power_source() == "battery"
+
+    @dbus.service.method("org.freedesktop.PowerManagement.Inhibit", in_signature="ss", out_signature="u")
+    def Inhibit(self, application, reason):
+        cookie = self._cookie_counter
+        self._cookie_counter += 1
+        self.inhibitions[cookie] = (str(application), str(reason))
+        print(f"[PowerManagement] Registered Inhibit from '{application}': {reason} (Cookie {cookie})")
+        return cookie
+
+    @dbus.service.method("org.freedesktop.PowerManagement.Inhibit", in_signature="u")
+    def UnInhibit(self, cookie):
+        if cookie in self.inhibitions:
+            app, reason = self.inhibitions.pop(cookie)
+            print(f"[PowerManagement] Released Inhibit for '{app}' (Cookie {cookie})")
+
+    @dbus.service.method("org.freedesktop.PowerManagement.Inhibit", out_signature="b")
+    def HasInhibit(self):
+        return len(self.inhibitions) > 0 or self.manual_inhibit
+
+
+class FreedesktopInhibitService(dbus.service.Object):
+    """Provides org.freedesktop.PowerManagement.Inhibit at /org/freedesktop/PowerManagement/Inhibit."""
+    def __init__(self, bus_name, pm_service):
+        super().__init__(bus_name, "/org/freedesktop/PowerManagement/Inhibit")
+        self.pm_service = pm_service
+
+    @dbus.service.method("org.freedesktop.PowerManagement.Inhibit", in_signature="ss", out_signature="u")
+    def Inhibit(self, application, reason):
+        return self.pm_service.Inhibit(application, reason)
+
+    @dbus.service.method("org.freedesktop.PowerManagement.Inhibit", in_signature="u")
+    def UnInhibit(self, cookie):
+        self.pm_service.UnInhibit(cookie)
+
+    @dbus.service.method("org.freedesktop.PowerManagement.Inhibit", out_signature="b")
+    def HasInhibit(self):
+        return self.pm_service.HasInhibit()
+
+
+class KDEBrightnessControlService(dbus.service.Object):
+    """Provides org.kde.Solid.PowerManagement.Actions.BrightnessControl interface."""
+    def __init__(self, bus_name):
+        super().__init__(bus_name, "/org/kde/Solid/PowerManagement/Actions/BrightnessControl")
+
+    @dbus.service.method("org.kde.Solid.PowerManagement.Actions.BrightnessControl", out_signature="i")
+    def brightness(self):
+        return get_raw_brightness()
+
+    @dbus.service.method("org.kde.Solid.PowerManagement.Actions.BrightnessControl", out_signature="i")
+    def brightnessMax(self):
+        return get_max_brightness()
+
+    @dbus.service.method("org.kde.Solid.PowerManagement.Actions.BrightnessControl", out_signature="i")
+    def brightnessMin(self):
+        return 0
+
+    @dbus.service.method("org.kde.Solid.PowerManagement.Actions.BrightnessControl", out_signature="i")
+    def brightnessSteps(self):
+        return 20
+
+    @dbus.service.method("org.kde.Solid.PowerManagement.Actions.BrightnessControl", in_signature="i")
+    def setBrightness(self, val):
+        set_raw_brightness(val)
+
+    @dbus.service.method("org.kde.Solid.PowerManagement.Actions.BrightnessControl", in_signature="i")
+    def setBrightnessSilent(self, val):
+        set_raw_brightness(val)
+
+
+class KDEKeyboardBrightnessControlService(dbus.service.Object):
+    """Provides org.kde.Solid.PowerManagement.Actions.KeyboardBrightnessControl interface."""
+    def __init__(self, bus_name):
+        super().__init__(bus_name, "/org/kde/Solid/PowerManagement/Actions/KeyboardBrightnessControl")
+
+    @dbus.service.method("org.kde.Solid.PowerManagement.Actions.KeyboardBrightnessControl", out_signature="i")
+    def keyboardBrightness(self):
+        return get_kbd_brightness()
+
+    @dbus.service.method("org.kde.Solid.PowerManagement.Actions.KeyboardBrightnessControl", out_signature="i")
+    def keyboardBrightnessMax(self):
+        return 3
+
+    @dbus.service.method("org.kde.Solid.PowerManagement.Actions.KeyboardBrightnessControl", out_signature="i")
+    def keyboardBrightnessSteps(self):
+        return 3
+
+    @dbus.service.method("org.kde.Solid.PowerManagement.Actions.KeyboardBrightnessControl", in_signature="i")
+    def setKeyboardBrightness(self, val):
+        set_kbd_brightness(val)
+
+    @dbus.service.method("org.kde.Solid.PowerManagement.Actions.KeyboardBrightnessControl", in_signature="i")
+    def setKeyboardBrightnessSilent(self, val):
+        set_kbd_brightness(val)
+
+
+class KDEPolicyAgentService(dbus.service.Object):
+    """Provides org.kde.Solid.PowerManagement.PolicyAgent interface."""
+    def __init__(self, bus_name, pm_service):
+        super().__init__(bus_name, "/org/kde/Solid/PowerManagement/PolicyAgent")
+        self.pm_service = pm_service
+
+    @dbus.service.method("org.kde.Solid.PowerManagement.PolicyAgent", in_signature="u", out_signature="b")
+    def HasInhibition(self, types):
+        return self.pm_service.HasInhibit()
+
+    @dbus.service.method("org.kde.Solid.PowerManagement.PolicyAgent", in_signature="uss", out_signature="u")
+    def AddInhibition(self, types, app_name, reason):
+        return self.pm_service.Inhibit(app_name, reason)
+
+    @dbus.service.method("org.kde.Solid.PowerManagement.PolicyAgent", in_signature="u")
+    def ReleaseInhibition(self, cookie):
+        self.pm_service.UnInhibit(cookie)
+
+
+class IdleManager:
+    """Manages display dimming, DPMS-off, and auto-suspend based on user idle time via KIdleTime."""
+    def __init__(self, has_inhibit_callback):
+        self.has_inhibit = has_inhibit_callback
+        self.is_dimmed = False
+        self.is_dpms_off = False
+        self.saved_brightness = None
+        self.current_state = "ac"
+
+        # Timeouts in seconds for (dim, dpms_off, suspend)
+        self.timeouts = {
+            "battery": {"dim": 180, "off": 300, "suspend": 900},   # 3m, 5m, 15m
+            "usbc":    {"dim": 300, "off": 600, "suspend": 1800},  # 5m, 10m, 30m
+            "ac":      {"dim": 600, "off": 900, "suspend": 0},     # 10m, 15m, never
+        }
+        self.timeout_actions = {}
+        self.available = False
+        self._init_kidletime()
+
+    def _init_kidletime(self):
+        try:
+            self.lib = ctypes.CDLL("libKF6IdleTime.so.6")
+            fn = getattr(self.lib, "_ZN9KIdleTime8instanceEv")
+            fn.restype = ctypes.c_void_p
+            self.inst = fn()
+            self.qobj = sip.wrapinstance(self.inst, QObject)
+
+            self._add_to = getattr(self.lib, "_ZN9KIdleTime14addIdleTimeoutEi")
+            self._add_to.argtypes = [ctypes.c_void_p, ctypes.c_int]
+            self._add_to.restype = ctypes.c_int
+
+            self._remove_all = getattr(self.lib, "_ZN9KIdleTime21removeAllIdleTimeoutsEv")
+            self._remove_all.argtypes = [ctypes.c_void_p]
+
+            self._catch_resume = getattr(self.lib, "_ZN9KIdleTime20catchNextResumeEventEv")
+            self._catch_resume.argtypes = [ctypes.c_void_p]
+
+            self.qobj.timeoutReached.connect(self._on_timeout)
+            self.qobj.resumingFromIdle.connect(self._on_resume)
+            self.available = True
+            print("[IdleManager] KIdleTime Wayland/X11 idle listener initialized.")
+        except Exception as e:
+            print(f"[IdleManager] KIdleTime not available: {e}")
+
+    def update_state(self, state: str):
+        self.current_state = state
+        self.rearm()
+
+    def rearm(self):
+        if not self.available:
+            return
+        try:
+            self._remove_all(self.inst)
+            self.timeout_actions.clear()
+
+            idle_cfg = CONFIG_MGR.data.get("idle", {})
+            dim_min = idle_cfg.get(f"dim_{self.current_state}_min", 3 if self.current_state == "battery" else (5 if self.current_state == "usbc" else 10))
+            off_min = idle_cfg.get(f"off_{self.current_state}_min", 5 if self.current_state == "battery" else (10 if self.current_state == "usbc" else 15))
+            sus_min = idle_cfg.get(f"suspend_{self.current_state}_min", 15 if self.current_state == "battery" else (30 if self.current_state == "usbc" else 0))
+
+            if dim_min > 0:
+                tid = self._add_to(self.inst, int(dim_min * 60 * 1000))
+                self.timeout_actions[tid] = "dim"
+            if off_min > 0:
+                tid = self._add_to(self.inst, int(off_min * 60 * 1000))
+                self.timeout_actions[tid] = "off"
+            if sus_min > 0:
+                tid = self._add_to(self.inst, int(sus_min * 60 * 1000))
+                self.timeout_actions[tid] = "suspend"
+        except Exception as e:
+            print(f"[IdleManager] Error setting timeouts: {e}")
+
+    def _on_timeout(self, tid: int, ms: int):
+        action = self.timeout_actions.get(tid)
+        if not action:
+            return
+
+        # Check inhibition
+        if self.has_inhibit():
+            return
+
+        if action == "dim" and not self.is_dimmed and not self.is_dpms_off:
+            self.saved_brightness = get_raw_brightness()
+            dim_val = max(100, int(self.saved_brightness * 0.25))
+            set_raw_brightness(dim_val)
+            self.is_dimmed = True
+            self._catch_resume(self.inst)
+            print("[IdleManager] Inactivity: Display dimmed to 25%")
+
+        elif action == "off" and not self.is_dpms_off:
+            subprocess.Popen(["kscreen-doctor", "--dpms", "off"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            self.is_dpms_off = True
+            self._catch_resume(self.inst)
+            print("[IdleManager] Inactivity: Display DPMS turned off")
+
+        elif action == "suspend":
+            print("[IdleManager] Inactivity: Triggering auto-suspend")
+            subprocess.Popen(["loginctl", "suspend"])
+
+    def _on_resume(self):
+        if self.is_dpms_off:
+            subprocess.Popen(["kscreen-doctor", "--dpms", "on"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            self.is_dpms_off = False
+            print("[IdleManager] User resumed: Display turned on")
+
+        if self.is_dimmed:
+            if self.saved_brightness is not None:
+                set_raw_brightness(self.saved_brightness)
+                self.saved_brightness = None
+            self.is_dimmed = False
+            print("[IdleManager] User resumed: Brightness restored")
 
 
 def get_power_telemetry(current_hz: float = 60.0) -> dict:
@@ -585,33 +998,117 @@ def send_notification(title: str, message: str, icon: str = "preferences-system-
         pass
 
 
+class ConfigManager:
+    """Manages user-customizable settings, timeouts and automations (~/.config/rog-auto-power/config.json)."""
+    DEFAULT_CONFIG = {
+        "profiles": {
+            "battery": {"profile": "power-saver", "hz": 60, "brightness": 50, "kbd": 1, "command": ""},
+            "usbc": {"profile": "balanced", "hz": 60, "brightness": 75, "kbd": 1, "command": ""},
+            "ac": {"profile": "performance", "hz": 240, "brightness": 100, "kbd": 3, "command": ""},
+        },
+        "idle": {
+            "dim_battery_min": 3,
+            "dim_usbc_min": 5,
+            "dim_ac_min": 10,
+            "off_battery_min": 5,
+            "off_usbc_min": 10,
+            "off_ac_min": 15,
+            "suspend_battery_min": 15,
+            "suspend_usbc_min": 30,
+            "suspend_ac_min": 0,
+        },
+        "alerts": {
+            "low_battery_percent": 10,
+            "critical_battery_percent": 5,
+            "on_low_command": "",
+            "on_critical_command": "",
+        },
+    }
+
+    def __init__(self):
+        self.dir = os.path.expanduser("~/.config/rog-auto-power")
+        self.path = os.path.join(self.dir, "config.json")
+        self.hooks_dir = os.path.join(self.dir, "hooks.d")
+        self.data = copy.deepcopy(self.DEFAULT_CONFIG)
+        self.load()
+
+    def load(self):
+        os.makedirs(self.hooks_dir, exist_ok=True)
+        if os.path.exists(self.path):
+            try:
+                with open(self.path, "r", encoding="utf-8") as f:
+                    user_data = json.load(f)
+                for section, vals in user_data.items():
+                    if section in self.data and isinstance(vals, dict):
+                        self.data[section].update(vals)
+                    else:
+                        self.data[section] = vals
+            except Exception as e:
+                print(f"[Config] Error loading {self.path}: {e}")
+        else:
+            self.save()
+
+    def save(self):
+        os.makedirs(self.dir, exist_ok=True)
+        try:
+            with open(self.path, "w", encoding="utf-8") as f:
+                json.dump(self.data, f, indent=2, ensure_ascii=False)
+            print(f"[Config] Saved to {self.path}")
+        except Exception as e:
+            print(f"[Config] Error saving {self.path}: {e}")
+
+    def run_hook(self, hook_name: str, *args):
+        hook_path = os.path.join(self.hooks_dir, hook_name)
+        if os.path.isfile(hook_path) and os.access(hook_path, os.X_OK):
+            try:
+                subprocess.Popen([hook_path, *args], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                print(f"[Automation] Hook executed: {hook_name} {' '.join(args)}")
+            except Exception as e:
+                print(f"[Automation] Failed to run hook {hook_name}: {e}")
+
+    def run_command(self, cmd: str, env_vars: dict = None):
+        if cmd and cmd.strip():
+            try:
+                env = os.environ.copy()
+                if env_vars:
+                    env.update(env_vars)
+                subprocess.Popen(cmd, shell=True, env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                print(f"[Automation] Shell command executed: {cmd}")
+            except Exception as e:
+                print(f"[Automation] Failed to run command '{cmd}': {e}")
+
+
+CONFIG_MGR = ConfigManager()
+
+
 def get_state_config() -> dict:
+    p = CONFIG_MGR.data["profiles"]
     return {
         "battery": {
-            "profile": "power-saver",
-            "hz": 60,
-            "brightness": 50,
-            "kbd": 1,
+            "profile": p.get("battery", {}).get("profile", "power-saver"),
+            "hz": int(p.get("battery", {}).get("hz", 60)),
+            "brightness": int(p.get("battery", {}).get("brightness", 50)),
+            "kbd": int(p.get("battery", {}).get("kbd", 1)),
             "label": tr("bat_label"),
             "title": tr("bat_title"),
             "msg": tr("bat_msg"),
             "icon": "battery-good",
         },
         "usbc": {
-            "profile": "balanced",
-            "hz": 60,
-            "brightness": 75,
-            "kbd": 1,
+            "profile": p.get("usbc", {}).get("profile", "balanced"),
+            "hz": int(p.get("usbc", {}).get("hz", 60)),
+            "brightness": int(p.get("usbc", {}).get("brightness", 75)),
+            "kbd": int(p.get("usbc", {}).get("kbd", 1)),
             "label": tr("usbc_label"),
             "title": tr("usbc_title"),
             "msg": tr("usbc_msg"),
             "icon": "ac-adapter",
         },
         "ac": {
-            "profile": "performance",
-            "hz": 240,
-            "brightness": 100,
-            "kbd": 3,
+            "profile": p.get("ac", {}).get("profile", "performance"),
+            "hz": int(p.get("ac", {}).get("hz", 240)),
+            "brightness": int(p.get("ac", {}).get("brightness", 100)),
+            "kbd": int(p.get("ac", {}).get("kbd", 3)),
             "label": tr("ac_label"),
             "title": tr("ac_title"),
             "msg": tr("ac_msg"),
@@ -627,6 +1124,7 @@ class PowerManagerController:
         self.auto_mode = True
         self.cached_panel = ("eDP-1", "2560x1440", 60.0, [])
         self.cached_profile = "balanced"
+        self.idle_mgr = None
 
     def apply_state(self, force: bool = False):
         if not self.auto_mode and not force:
@@ -644,6 +1142,14 @@ class PowerManagerController:
         if state_changed or force:
             set_screen_and_kbd_brightness(cfg["brightness"], cfg["kbd"])
             apply_hardware_tunings(new_state)
+            if self.idle_mgr:
+                self.idle_mgr.update_state(new_state)
+
+            # Run user automations & hooks on power state change
+            if state_changed:
+                cmd = CONFIG_MGR.data.get("profiles", {}).get(new_state, {}).get("command", "")
+                CONFIG_MGR.run_command(cmd, {"ROG_POWER_STATE": new_state, "ROG_PREV_STATE": str(self.last_state)})
+                CONFIG_MGR.run_hook("on_state_change", new_state, str(self.last_state))
 
         self.cached_panel = get_panel_info()
         self.cached_profile = get_current_power_profile()
@@ -660,15 +1166,382 @@ class PowerManagerController:
             send_notification(cfg["title"], cfg["msg"], cfg["icon"])
 
 
+class AboutDialog(QDialog):
+    """Modern GUI About window showcasing author, brand, links, license and system status."""
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle(tr("about_win_title"))
+        self.setMinimumWidth(520)
+        self.setStyleSheet("""
+            QDialog {
+                background-color: #111827;
+                color: #f3f4f6;
+                font-family: 'Segoe UI', 'Ubuntu', 'Sans Serif';
+            }
+            QLabel {
+                color: #e5e7eb;
+            }
+            QGroupBox {
+                border: 1px solid #374151;
+                border-radius: 8px;
+                margin-top: 1em;
+                padding-top: 10px;
+                font-weight: bold;
+                color: #93c5fd;
+            }
+            QGroupBox::title {
+                subcontrol-origin: margin;
+                left: 12px;
+                padding: 0 4px;
+            }
+            QPushButton {
+                background-color: #2563eb;
+                color: white;
+                border-radius: 6px;
+                padding: 6px 20px;
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                background-color: #1d4ed8;
+            }
+        """)
+
+        layout = QVBoxLayout(self)
+
+        # Header Title
+        title_lbl = QLabel(f"<h2 style='margin: 0; color: #60a5fa;'>⚡ {APP_NAME} <span style='font-size: 14px; color: #9ca3af;'>v{APP_VERSION}</span></h2>")
+        desc_lbl = QLabel(f"<p style='color: #d1d5db; margin-top: 4px;'>"
+                          f"Hardware-, Energie-, C-Raten- & MUX-Management für ASUS ROG Strix (G713RM)</p>")
+        layout.addWidget(title_lbl)
+        layout.addWidget(desc_lbl)
+
+        # Developer & Project Info
+        dev_group = QGroupBox(tr("about_dev_group"))
+        dev_layout = QFormLayout(dev_group)
+        dev_layout.addRow(f"<b>{tr('about_author')}:</b>", QLabel(APP_AUTHOR))
+        dev_layout.addRow(f"<b>{tr('about_org')}:</b>", QLabel(APP_ORG))
+
+        web_lbl = QLabel(f"<a href='{APP_WEBSITE}' style='color: #60a5fa;'>{APP_WEBSITE}</a>")
+        web_lbl.setOpenExternalLinks(True)
+        dev_layout.addRow(f"<b>{tr('about_web')}:</b>", web_lbl)
+
+        repo_lbl = QLabel(f"<a href='{APP_URL}' style='color: #60a5fa;'>{APP_URL}</a>")
+        repo_lbl.setOpenExternalLinks(True)
+        dev_layout.addRow(f"<b>{tr('about_repo')}:</b>", repo_lbl)
+
+        dev_layout.addRow(f"<b>{tr('about_license')}:</b>", QLabel(f"GNU GPLv3+ ({APP_LICENSE})"))
+        layout.addWidget(dev_group)
+
+        # Live System Status
+        sys_group = QGroupBox(tr("about_sys_group"))
+        sys_layout = QFormLayout(sys_group)
+        src = get_power_source()
+        src_label = get_state_config()[src]["label"]
+        prof = get_current_power_profile()
+        panel_name, _, rate, _ = get_panel_info()
+        rate_str = f"{int(rate)} Hz" if rate else "60 Hz"
+
+        sys_layout.addRow("<b>Stromquelle:</b>", QLabel(src_label))
+        sys_layout.addRow("<b>Profil & Display:</b>", QLabel(f"{tr(f'prof_{prof}')} | {panel_name} @ {rate_str}"))
+
+        try:
+            with open("/sys/class/power_supply/BAT0/capacity", "r") as f:
+                cap = f.read().strip()
+            with open("/sys/class/power_supply/BAT0/charge_control_end_threshold", "r") as f:
+                lim = f.read().strip()
+            sys_layout.addRow("<b>Akku-Stand & Limit:</b>", QLabel(f"{cap}% (Ladelimit: {lim}%)"))
+        except Exception:
+            pass
+
+        pm_path = "/sys/bus/pci/devices/0000:01:00.0/power/runtime_status"
+        if os.path.exists(pm_path):
+            try:
+                with open(pm_path, "r") as f:
+                    pm = f.read().strip()
+                status_txt = tr("gpu_sleep") if pm == "suspended" else tr("gpu_active")
+                sys_layout.addRow("<b>NVIDIA RTX 3060:</b>", QLabel(status_txt))
+            except Exception:
+                pass
+
+        layout.addWidget(sys_group)
+
+        # Close button
+        btn_box = QHBoxLayout()
+        btn_box.addStretch()
+        close_btn = QPushButton(tr("about_close"))
+        close_btn.clicked.connect(self.accept)
+        btn_box.addWidget(close_btn)
+        layout.addLayout(btn_box)
+
+
+class SettingsDialog(QDialog):
+    """Interactive GUI dialog to configure profiles, idle timeouts and shell automations."""
+    def __init__(self, controller, parent=None):
+        super().__init__(parent)
+        self.controller = controller
+        self.setWindowTitle(tr("settings_title"))
+        self.setMinimumSize(640, 520)
+        self.setStyleSheet("""
+            QDialog {
+                background-color: #111827;
+                color: #f3f4f6;
+                font-family: 'Segoe UI', 'Ubuntu', 'Sans Serif';
+            }
+            QTabWidget::pane {
+                border: 1px solid #374151;
+                border-radius: 8px;
+                padding: 10px;
+                background-color: #1f2937;
+            }
+            QTabBar::tab {
+                background: #111827;
+                color: #9ca3af;
+                padding: 8px 16px;
+                border-top-left-radius: 6px;
+                border-top-right-radius: 6px;
+                margin-right: 4px;
+            }
+            QTabBar::tab:selected {
+                background: #1f2937;
+                color: #60a5fa;
+                font-weight: bold;
+            }
+            QGroupBox {
+                border: 1px solid #374151;
+                border-radius: 6px;
+                margin-top: 10px;
+                padding-top: 12px;
+                color: #93c5fd;
+                font-weight: bold;
+            }
+            QGroupBox::title {
+                subcontrol-origin: margin;
+                left: 10px;
+                padding: 0 4px;
+            }
+            QLineEdit, QComboBox, QSpinBox {
+                background-color: #374151;
+                color: #f9fafb;
+                border: 1px solid #4b5563;
+                border-radius: 4px;
+                padding: 4px 8px;
+            }
+            QPushButton {
+                background-color: #2563eb;
+                color: white;
+                border-radius: 6px;
+                padding: 6px 16px;
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                background-color: #1d4ed8;
+            }
+        """)
+
+        layout = QVBoxLayout(self)
+        self.tabs = QTabWidget()
+
+        # Tab 1: Profiles & Hardware
+        tab_prof = QWidget()
+        lay_prof = QVBoxLayout(tab_prof)
+        self.widgets_prof = {}
+
+        for state, lbl in (("battery", "⚡ Akkubetrieb (battery)"),
+                           ("usbc", "🔌 USB-C PD (usbc)"),
+                           ("ac", "🚀 240W Netzteil (ac)")):
+            grp = QGroupBox(lbl)
+            f_lay = QFormLayout(grp)
+            p_data = CONFIG_MGR.data["profiles"].get(state, {})
+
+            cb_prof = QComboBox()
+            cb_prof.addItems(["power-saver", "balanced", "performance"])
+            cb_prof.setCurrentText(p_data.get("profile", "balanced"))
+
+            cb_hz = QComboBox()
+            cb_hz.addItems(["60", "240"])
+            cb_hz.setCurrentText(str(p_data.get("hz", 60)))
+
+            sb_bright = QSpinBox()
+            sb_bright.setRange(10, 100)
+            sb_bright.setSuffix("%")
+            sb_bright.setValue(int(p_data.get("brightness", 75)))
+
+            sb_kbd = QSpinBox()
+            sb_kbd.setRange(0, 3)
+            sb_kbd.setValue(int(p_data.get("kbd", 1)))
+
+            f_lay.addRow("Energieprofil:", cb_prof)
+            f_lay.addRow("Bildwiederholrate:", cb_hz)
+            f_lay.addRow("Display-Helligkeit:", sb_bright)
+            f_lay.addRow("Tastatur-LED (0-3):", sb_kbd)
+
+            self.widgets_prof[state] = {
+                "profile": cb_prof,
+                "hz": cb_hz,
+                "brightness": sb_bright,
+                "kbd": sb_kbd,
+            }
+            lay_prof.addWidget(grp)
+
+        self.tabs.addTab(tab_prof, tr("tab_profiles"))
+
+        # Tab 2: Inactivity & Display
+        tab_idle = QWidget()
+        lay_idle = QVBoxLayout(tab_idle)
+        i_data = CONFIG_MGR.data.get("idle", {})
+        self.widgets_idle = {}
+
+        grp_dim = QGroupBox("Display abdunkeln (Minuten, 0 = Aus)")
+        dim_lay = QFormLayout(grp_dim)
+        sb_dim_bat = QSpinBox(); sb_dim_bat.setRange(0, 60); sb_dim_bat.setValue(i_data.get("dim_battery_min", 3))
+        sb_dim_usbc = QSpinBox(); sb_dim_usbc.setRange(0, 60); sb_dim_usbc.setValue(i_data.get("dim_usbc_min", 5))
+        sb_dim_ac = QSpinBox(); sb_dim_ac.setRange(0, 120); sb_dim_ac.setValue(i_data.get("dim_ac_min", 10))
+        dim_lay.addRow("Akkubetrieb:", sb_dim_bat)
+        dim_lay.addRow("USB-C PD:", sb_dim_usbc)
+        dim_lay.addRow("240W Netzteil:", sb_dim_ac)
+        lay_idle.addWidget(grp_dim)
+
+        grp_off = QGroupBox("Display ausschalten / DPMS (Minuten, 0 = Aus)")
+        off_lay = QFormLayout(grp_off)
+        sb_off_bat = QSpinBox(); sb_off_bat.setRange(0, 60); sb_off_bat.setValue(i_data.get("off_battery_min", 5))
+        sb_off_usbc = QSpinBox(); sb_off_usbc.setRange(0, 60); sb_off_usbc.setValue(i_data.get("off_usbc_min", 10))
+        sb_off_ac = QSpinBox(); sb_off_ac.setRange(0, 120); sb_off_ac.setValue(i_data.get("off_ac_min", 15))
+        off_lay.addRow("Akkubetrieb:", sb_off_bat)
+        off_lay.addRow("USB-C PD:", sb_off_usbc)
+        off_lay.addRow("240W Netzteil:", sb_off_ac)
+        lay_idle.addWidget(grp_off)
+
+        grp_sus = QGroupBox("Automatischer Standby (Minuten, 0 = Aus)")
+        sus_lay = QFormLayout(grp_sus)
+        sb_sus_bat = QSpinBox(); sb_sus_bat.setRange(0, 120); sb_sus_bat.setValue(i_data.get("suspend_battery_min", 15))
+        sb_sus_usbc = QSpinBox(); sb_sus_usbc.setRange(0, 120); sb_sus_usbc.setValue(i_data.get("suspend_usbc_min", 30))
+        sb_sus_ac = QSpinBox(); sb_sus_ac.setRange(0, 240); sb_sus_ac.setValue(i_data.get("suspend_ac_min", 0))
+        sus_lay.addRow("Akkubetrieb:", sb_sus_bat)
+        sus_lay.addRow("USB-C PD:", sb_sus_usbc)
+        sus_lay.addRow("240W Netzteil:", sb_sus_ac)
+        lay_idle.addWidget(grp_sus)
+
+        self.widgets_idle = {
+            "dim_battery_min": sb_dim_bat, "dim_usbc_min": sb_dim_usbc, "dim_ac_min": sb_dim_ac,
+            "off_battery_min": sb_off_bat, "off_usbc_min": sb_off_usbc, "off_ac_min": sb_off_ac,
+            "suspend_battery_min": sb_sus_bat, "suspend_usbc_min": sb_sus_usbc, "suspend_ac_min": sb_sus_ac,
+        }
+        self.tabs.addTab(tab_idle, tr("tab_idle"))
+
+        # Tab 3: Automations & Hooks
+        tab_auto = QWidget()
+        lay_auto = QVBoxLayout(tab_auto)
+        info_auto = QLabel("Führe eigene Shell-Befehle oder Hooks aus, wenn bestimmte Ereignisse eintreten:")
+        info_auto.setWordWrap(True)
+        lay_auto.addWidget(info_auto)
+
+        grp_cmds = QGroupBox("Shell-Befehle bei Statuswechsel")
+        cmd_lay = QFormLayout(grp_cmds)
+        self.le_cmd_bat = QLineEdit(CONFIG_MGR.data["profiles"].get("battery", {}).get("command", ""))
+        self.le_cmd_usbc = QLineEdit(CONFIG_MGR.data["profiles"].get("usbc", {}).get("command", ""))
+        self.le_cmd_ac = QLineEdit(CONFIG_MGR.data["profiles"].get("ac", {}).get("command", ""))
+        cmd_lay.addRow("Befehl bei Akku:", self.le_cmd_bat)
+        cmd_lay.addRow("Befehl bei USB-C:", self.le_cmd_usbc)
+        cmd_lay.addRow("Befehl bei Netzteil (AC):", self.le_cmd_ac)
+        lay_auto.addWidget(grp_cmds)
+
+        grp_alt = QGroupBox("Akkuwarnungen & Befehle")
+        alt_lay = QFormLayout(grp_alt)
+        a_data = CONFIG_MGR.data.get("alerts", {})
+        self.sb_low_pct = QSpinBox(); self.sb_low_pct.setRange(5, 30); self.sb_low_pct.setSuffix("%"); self.sb_low_pct.setValue(a_data.get("low_battery_percent", 10))
+        self.le_cmd_low = QLineEdit(a_data.get("on_low_command", ""))
+        alt_lay.addRow("Schwacher Akku ab:", self.sb_low_pct)
+        alt_lay.addRow("Befehl bei schwachem Akku:", self.le_cmd_low)
+        lay_auto.addWidget(grp_alt)
+
+        btn_hooks = QPushButton(tr("btn_open_hooks"))
+        btn_hooks.clicked.connect(lambda: subprocess.Popen(["xdg-open", CONFIG_MGR.hooks_dir]))
+        lay_auto.addWidget(btn_hooks)
+        lay_auto.addStretch()
+
+        self.tabs.addTab(tab_auto, tr("tab_automations"))
+        layout.addWidget(self.tabs)
+
+        # Dialog Buttons
+        btn_box = QHBoxLayout()
+        btn_box.addStretch()
+        cancel_btn = QPushButton(tr("btn_cancel"))
+        cancel_btn.setStyleSheet("background-color: #4b5563;")
+        cancel_btn.clicked.connect(self.reject)
+        btn_box.addWidget(cancel_btn)
+
+        save_btn = QPushButton(tr("btn_save"))
+        save_btn.clicked.connect(self.save_and_apply)
+        btn_box.addWidget(save_btn)
+        layout.addLayout(btn_box)
+
+    def save_and_apply(self):
+        # 1. Update profiles
+        for state, w in self.widgets_prof.items():
+            CONFIG_MGR.data["profiles"][state]["profile"] = w["profile"].currentText()
+            CONFIG_MGR.data["profiles"][state]["hz"] = int(w["hz"].currentText())
+            CONFIG_MGR.data["profiles"][state]["brightness"] = w["brightness"].value()
+            CONFIG_MGR.data["profiles"][state]["kbd"] = w["kbd"].value()
+
+        CONFIG_MGR.data["profiles"]["battery"]["command"] = self.le_cmd_bat.text().strip()
+        CONFIG_MGR.data["profiles"]["usbc"]["command"] = self.le_cmd_usbc.text().strip()
+        CONFIG_MGR.data["profiles"]["ac"]["command"] = self.le_cmd_ac.text().strip()
+
+        # 2. Update idle timeouts
+        for key, sb in self.widgets_idle.items():
+            CONFIG_MGR.data["idle"][key] = sb.value()
+
+        # 3. Update alerts
+        CONFIG_MGR.data["alerts"]["low_battery_percent"] = self.sb_low_pct.value()
+        CONFIG_MGR.data["alerts"]["on_low_command"] = self.le_cmd_low.text().strip()
+
+        CONFIG_MGR.save()
+
+        # Re-arm idle manager and apply state immediately
+        if self.controller and self.controller.idle_mgr:
+            self.controller.idle_mgr.rearm()
+        if self.controller:
+            self.controller.apply_state(force=True)
+
+        self.accept()
+
+
 def run_gui_daemon(controller: PowerManagerController):
     """Run the PyQt6 System Tray live Wattage monitor + DBus event loop."""
-    from PyQt6.QtWidgets import QApplication, QSystemTrayIcon, QMenu
-    from PyQt6.QtGui import QIcon, QPixmap, QPainter, QColor, QFont, QAction
-    from PyQt6.QtCore import Qt, QTimer, QRect
-
     DBusGMainLoop(set_as_default=True)
     app = QApplication(sys.argv)
     app.setQuitOnLastWindowClosed(False)
+
+    # Initialize PowerDevil replacement D-Bus services
+    pm_service = None
+    try:
+        session_bus = dbus.SessionBus()
+        try:
+            fd_bus_name = dbus.service.BusName("org.freedesktop.PowerManagement", session_bus, do_not_queue=True)
+            pm_service = FreedesktopPowerManagementService(fd_bus_name)
+            FreedesktopInhibitService(fd_bus_name, pm_service)
+            print("[D-Bus] Registered org.freedesktop.PowerManagement & Inhibit")
+        except Exception as e:
+            print(f"[D-Bus] org.freedesktop.PowerManagement: {e}")
+
+        try:
+            kde_bus_name = dbus.service.BusName("org.kde.Solid.PowerManagement", session_bus, do_not_queue=True)
+            KDEBrightnessControlService(kde_bus_name)
+            KDEKeyboardBrightnessControlService(kde_bus_name)
+            if pm_service:
+                KDEPolicyAgentService(kde_bus_name, pm_service)
+            print("[D-Bus] Registered org.kde.Solid.PowerManagement Actions & PolicyAgent")
+        except Exception as e:
+            print(f"[D-Bus] org.kde.Solid.PowerManagement: {e}")
+    except Exception as e:
+        print(f"[D-Bus] Session bus error: {e}")
+
+    def check_inhibit() -> bool:
+        return pm_service.HasInhibit() if pm_service else False
+
+    idle_mgr = IdleManager(check_inhibit)
+    controller.idle_mgr = idle_mgr
+    idle_mgr.update_state(get_power_source())
 
     tray = QSystemTrayIcon()
 
@@ -813,14 +1686,34 @@ def run_gui_daemon(controller: PowerManagerController):
         current = get_gpu_mode()
         try:
             if mode == "AsusMuxDgpu":
-                subprocess.check_call(["sudo", "/usr/local/bin/rog-gpu-mux-helper", "AsusMuxDgpu"])
+                mux_file = "/sys/devices/platform/asus-nb-wmi/gpu_mux_mode"
+                mux_written = False
+                if os.path.exists(mux_file):
+                    try:
+                        with open(mux_file, "w") as f:
+                            f.write("0\n")
+                        mux_written = True
+                    except Exception:
+                        pass
+                if not mux_written:
+                    if os.path.exists("/usr/local/bin/rog-gpu-mux-helper"):
+                        subprocess.check_call(["sudo", "-n", "/usr/local/bin/rog-gpu-mux-helper", "AsusMuxDgpu"])
                 send_notification(tr("gpu_mux_nv_title"), tr("gpu_mux_nv_msg"))
-            elif current.startswith("AsusMuxDgpu"):
-                subprocess.check_call(["sudo", "/usr/local/bin/rog-gpu-mux-helper", mode])
-                send_notification(tr("gpu_mux_prep_title", mode=mode), tr("gpu_mux_prep_msg", mode=mode))
             else:
-                subprocess.check_call(["supergfxctl", "-m", mode])
-                send_notification(tr("gpu_super_title"), tr("gpu_super_msg", mode=mode))
+                try:
+                    subprocess.check_call(["supergfxctl", "-m", mode])
+                    mux_file = "/sys/devices/platform/asus-nb-wmi/gpu_mux_mode"
+                    if os.path.exists(mux_file):
+                        try:
+                            with open(mux_file, "w") as f:
+                                f.write("1\n")
+                        except Exception:
+                            pass
+                    send_notification(tr("gpu_super_title"), tr("gpu_super_msg", mode=mode))
+                except Exception:
+                    if os.path.exists("/usr/local/bin/rog-gpu-mux-helper"):
+                        subprocess.check_call(["sudo", "-n", "/usr/local/bin/rog-gpu-mux-helper", mode])
+                        send_notification(tr("gpu_mux_prep_title", mode=mode), tr("gpu_mux_prep_msg", mode=mode))
         except Exception as e:
             send_notification(tr("gpu_err_title"), str(e))
         update_tray()
@@ -843,11 +1736,31 @@ def run_gui_daemon(controller: PowerManagerController):
     menu.addAction(act_bat_prot)
 
     def set_charge_limit(limit: int, label: str):
-        try:
-            subprocess.check_call(["sudo", "-n", "/usr/local/bin/rog-gpu-mux-helper", "charge-limit", str(limit)])
-            send_notification(tr("bat_prot_title"), tr("bat_prot_msg", label=label, limit=limit))
-        except Exception as e:
-            send_notification(tr("bat_prot_err"), str(e))
+        written = False
+        thresh_file = "/sys/class/power_supply/BAT0/charge_control_end_threshold"
+        if os.path.exists(thresh_file):
+            try:
+                with open(thresh_file, "w") as f:
+                    f.write(f"{limit}\n")
+                written = True
+            except (PermissionError, IOError):
+                pass
+            except Exception as e:
+                print(f"[ChargeLimit] Sysfs error: {e}")
+
+        if not written:
+            if os.path.exists("/usr/local/bin/rog-gpu-mux-helper"):
+                try:
+                    subprocess.check_call(["sudo", "-n", "/usr/local/bin/rog-gpu-mux-helper", "charge-limit", str(limit)])
+                    written = True
+                except Exception as e:
+                    send_notification(tr("bat_prot_err"), str(e))
+                    return
+            else:
+                send_notification(tr("bat_prot_err"), "Permission denied writing charge threshold")
+                return
+
+        send_notification(tr("bat_prot_title"), tr("bat_prot_msg", label=label, limit=limit))
         update_tray()
 
     def stop_charging_now():
@@ -873,27 +1786,88 @@ def run_gui_daemon(controller: PowerManagerController):
 
     menu.addSeparator()
 
-    def show_about():
-        send_notification(
-            tr("about_title", ver=APP_VERSION),
-            tr("about_msg", author=APP_AUTHOR, web=APP_WEBSITE, lic=APP_LICENSE, url=APP_URL),
-        )
-        try:
-            subprocess.Popen(["xdg-open", APP_WEBSITE], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        except Exception:
-            pass
+    # Inhibit / Presentation mode toggle
+    act_inhibit = QAction(tr("menu_inhibit"), menu)
+    act_inhibit.setCheckable(True)
+    act_inhibit.setChecked(False)
 
-    act_about = QAction(tr("menu_about", ver=APP_VERSION), menu)
-    act_about.triggered.connect(show_about)
+    def toggle_inhibit(checked):
+        if pm_service:
+            pm_service.manual_inhibit = checked
+        if checked:
+            send_notification(tr("inhibit_on_title"), tr("inhibit_on_msg"))
+        else:
+            send_notification(tr("inhibit_off_title"), tr("inhibit_off_msg"))
+        if idle_mgr:
+            idle_mgr.rearm()
+
+    act_inhibit.triggered.connect(toggle_inhibit)
+    menu.addAction(act_inhibit)
+
+    menu.addSeparator()
+
+    # Display brightness submenu
+    menu_bright = menu.addMenu(tr("menu_brightness"))
+    for pct in (100, 75, 50, 25, 10):
+        act_b = QAction(f"{pct}%", menu_bright)
+        act_b.triggered.connect(lambda _, p=pct: set_brightness_pct(p))
+        menu_bright.addAction(act_b)
+
+    # Keyboard backlight submenu
+    menu_kbd = menu.addMenu(tr("menu_kbd"))
+    kbd_levels = [
+        (3, "Stufe 3 (Hell)" if LANG == "de" else "Level 3 (Bright)"),
+        (2, "Stufe 2 (Mittel)" if LANG == "de" else "Level 2 (Medium)"),
+        (1, "Stufe 1 (Schwach)" if LANG == "de" else "Level 1 (Dim)"),
+        (0, "Aus" if LANG == "de" else "Off"),
+    ]
+    for lvl, lbl in kbd_levels:
+        act_k = QAction(lbl, menu_kbd)
+        act_k.triggered.connect(lambda _, l=lvl: set_kbd_brightness(l))
+        menu_kbd.addAction(act_k)
+
+    menu.addSeparator()
+
+    # Session actions (Lock, Suspend, Hibernate)
+    act_lock = QAction(tr("menu_lock"), menu)
+    act_lock.triggered.connect(lambda: subprocess.Popen(["loginctl", "lock-session"]))
+    menu.addAction(act_lock)
+
+    act_suspend = QAction(tr("menu_suspend"), menu)
+    act_suspend.triggered.connect(lambda: subprocess.Popen(["loginctl", "suspend"]))
+    menu.addAction(act_suspend)
+
+    act_hibernate = QAction(tr("menu_hibernate"), menu)
+    act_hibernate.triggered.connect(lambda: subprocess.Popen(["loginctl", "hibernate"]))
+    menu.addAction(act_hibernate)
+
+    menu.addSeparator()
+
+    def open_settings():
+        dlg = SettingsDialog(controller)
+        dlg.exec()
+
+    act_settings = QAction(tr("menu_settings"), menu)
+    act_settings.triggered.connect(open_settings)
+    menu.addAction(act_settings)
+
+    def open_about():
+        dlg = AboutDialog()
+        dlg.exec()
+
+    act_about = QAction(tr("menu_about"), menu)
+    act_about.triggered.connect(open_about)
     menu.addAction(act_about)
 
     tray.setContextMenu(menu)
 
     tick_count = 0
     cached_gpu_mode = get_gpu_mode()
+    low_bat_alerted = False
+    crit_bat_alerted = False
 
     def update_tray():
-        nonlocal tick_count, cached_gpu_mode
+        nonlocal tick_count, cached_gpu_mode, low_bat_alerted, crit_bat_alerted
         tick_count += 1
 
         if tick_count % 3 == 1:
@@ -920,6 +1894,31 @@ def run_gui_daemon(controller: PowerManagerController):
         apu_w = tel["apu_watts"]
         dgpu_w = tel["dgpu_watts"]
         rest_w = tel["rest_watts"]
+
+        # Low & Critical Battery Alerts & Automations
+        if status == "Discharging":
+            a_cfg = CONFIG_MGR.data.get("alerts", {})
+            low_thresh = a_cfg.get("low_battery_percent", 10)
+            crit_thresh = a_cfg.get("critical_battery_percent", 5)
+
+            if cap <= crit_thresh and not crit_bat_alerted:
+                send_notification(tr("bat_crit_title"), tr("bat_crit_msg", cap=cap))
+                crit_bat_alerted = True
+                cmd_crit = a_cfg.get("on_critical_command", "")
+                if cmd_crit:
+                    CONFIG_MGR.run_command(cmd_crit, {"ROG_CAP": str(cap)})
+                CONFIG_MGR.run_hook("battery_critical", str(cap))
+                QTimer.singleShot(15000, lambda: subprocess.Popen(["loginctl", "suspend"]))
+            elif cap <= low_thresh and not low_bat_alerted:
+                send_notification(tr("bat_low_title"), tr("bat_low_msg", cap=cap))
+                low_bat_alerted = True
+                cmd_low = a_cfg.get("on_low_command", "")
+                if cmd_low:
+                    CONFIG_MGR.run_command(cmd_low, {"ROG_CAP": str(cap)})
+                CONFIG_MGR.run_hook("battery_low", str(cap))
+        elif status == "Charging" or total_in > 0:
+            low_bat_alerted = False
+            crit_bat_alerted = False
 
         usbc_extra = f" (Max {tel['usbc_max_watts']:.0f}W)" if src == "usbc" and tel["usbc_max_watts"] > 0 else ""
 

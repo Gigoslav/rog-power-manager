@@ -7,25 +7,33 @@ set -e
 
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-echo "=== Installing ROG Auto-Power & Live Watt Indicator (v0.1.2) ==="
+echo "=== Installing ROG Auto-Power & Live Watt Indicator (v0.3.0) ==="
 
 mkdir -p ~/.local/bin ~/.config/systemd/user ~/.local/share/applications
 ln -sf "$REPO_DIR/auto-power-profile.py" ~/.local/bin/auto-power-profile.py
 cp "$REPO_DIR/auto-power-profile.service" ~/.config/systemd/user/auto-power-profile.service
 cp "$REPO_DIR/rog-auto-power.desktop" ~/.local/share/applications/rog-auto-power.desktop
 
-if command -v kwriteconfig6 >/dev/null 2>&1; then
-    kwriteconfig6 --file powerdevilrc --group AC --group PowerProfile --key profile performance
-    kwriteconfig6 --file powerdevilrc --group Battery --group PowerProfile --key profile power-saver
-fi
+echo "=== Installing udev rules & systemd-tmpfiles (Unprivileged Sysfs Access) ==="
+sudo install -Dm644 "$REPO_DIR/99-rog-auto-power.rules" /etc/udev/rules.d/99-rog-auto-power.rules
+sudo install -Dm644 "$REPO_DIR/rog-auto-power.conf" /etc/tmpfiles.d/rog-auto-power.conf
+sudo systemd-tmpfiles --create /etc/tmpfiles.d/rog-auto-power.conf
+sudo udevadm control --reload-rules || true
+sudo udevadm trigger || true
 
-echo "=== Installing selective root GPU/Power helper (/usr/local/bin/rog-gpu-mux-helper) ==="
+echo "=== Installing CLI helper (/usr/local/bin/rog-gpu-mux-helper) ==="
 sudo install -Dm755 "$REPO_DIR/rog-gpu-mux-helper" /usr/local/bin/rog-gpu-mux-helper
 
-SUDOERS_FILE="/etc/sudoers.d/$USER-rog-mux"
-echo "$USER ALL=(root) NOPASSWD: /usr/local/bin/rog-gpu-mux-helper" | sudo tee "$SUDOERS_FILE" >/dev/null
-sudo chmod 440 "$SUDOERS_FILE"
-sudo visudo -cf "$SUDOERS_FILE"
+# Clean up legacy sudoers file if it exists, as daemon now runs unprivileged without sudo
+if [ -f "/etc/sudoers.d/$USER-rog-mux" ]; then
+    echo "=== Removing legacy sudoers entry (/etc/sudoers.d/$USER-rog-mux) ==="
+    sudo rm -f "/etc/sudoers.d/$USER-rog-mux"
+fi
+
+# Replace KDE PowerDevil to avoid all background conflicts
+echo "=== Replacing KDE PowerDevil (stopping & masking plasma-powerdevil.service) ==="
+systemctl --user stop plasma-powerdevil.service 2>/dev/null || true
+systemctl --user mask plasma-powerdevil.service 2>/dev/null || true
 
 systemctl --user daemon-reload
 systemctl --user enable --now auto-power-profile.service

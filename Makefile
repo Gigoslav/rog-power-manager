@@ -3,11 +3,12 @@
 # Standard Linux/FHS Makefile for rog-auto-power
 
 pkgname := rog-auto-power
-VERSION := 0.1.2
+VERSION := 0.3.0
 
 PREFIX ?= /usr
 BINDIR ?= $(PREFIX)/bin
-SBINDIR ?= /usr/local/bin
+UDEVDIR ?= $(PREFIX)/lib/udev/rules.d
+TMPFILESDIR ?= $(PREFIX)/lib/tmpfiles.d
 SYSTEMD_USER_DIR ?= $(PREFIX)/lib/systemd/user
 APPDIR ?= $(PREFIX)/share/applications
 DOCDIR ?= $(PREFIX)/share/doc/$(pkgname)
@@ -26,7 +27,9 @@ check:
 install:
 	install -Dm755 auto-power-profile.py "$(DESTDIR)$(BINDIR)/auto-power-profile.py"
 	ln -sf auto-power-profile.py "$(DESTDIR)$(BINDIR)/rog-auto-power"
-	install -Dm755 rog-gpu-mux-helper "$(DESTDIR)$(SBINDIR)/rog-gpu-mux-helper"
+	install -Dm755 rog-gpu-mux-helper "$(DESTDIR)$(BINDIR)/rog-gpu-mux-helper"
+	install -Dm644 99-rog-auto-power.rules "$(DESTDIR)$(UDEVDIR)/99-rog-auto-power.rules"
+	install -Dm644 rog-auto-power.conf "$(DESTDIR)$(TMPFILESDIR)/rog-auto-power.conf"
 	sed 's|ExecStart=%h/.local/bin/auto-power-profile.py|ExecStart=$(BINDIR)/auto-power-profile.py|' auto-power-profile.service > auto-power-profile.service.pkg
 	install -Dm644 auto-power-profile.service.pkg "$(DESTDIR)$(SYSTEMD_USER_DIR)/auto-power-profile.service"
 	rm -f auto-power-profile.service.pkg
@@ -41,7 +44,9 @@ install:
 uninstall:
 	rm -f "$(DESTDIR)$(BINDIR)/auto-power-profile.py"
 	rm -f "$(DESTDIR)$(BINDIR)/rog-auto-power"
-	rm -f "$(DESTDIR)$(SBINDIR)/rog-gpu-mux-helper"
+	rm -f "$(DESTDIR)$(BINDIR)/rog-gpu-mux-helper"
+	rm -f "$(DESTDIR)$(UDEVDIR)/99-rog-auto-power.rules"
+	rm -f "$(DESTDIR)$(TMPFILESDIR)/rog-auto-power.conf"
 	rm -f "$(DESTDIR)$(SYSTEMD_USER_DIR)/auto-power-profile.service"
 	rm -f "$(DESTDIR)$(APPDIR)/rog-auto-power.desktop"
 	rm -rf "$(DESTDIR)$(LICENSEDIR)"

@@ -3,7 +3,7 @@
 🇬🇧 **English** | 🇩🇪 **[Deutsch](README.de.md)**
 
 [![License: GPL v3+](https://img.shields.io/badge/License-GPLv3%2B-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
-[![Version](https://img.shields.io/badge/version-0.1.2-brightgreen.svg)](https://github.com/Gigoslav/rog-auto-power/releases)
+[![Version](https://img.shields.io/badge/version-0.2.0-brightgreen.svg)](https://github.com/Gigoslav/rog-auto-power/releases)
 [![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20Arch%20%7C%20KDE%20Plasma%206-informational.svg)](https://github.com/Gigoslav/rog-auto-power)
 
 Intelligent 3-state power management, display refresh-rate switching (`60 Hz` ↔ `240 Hz`), **live Wattage System-Tray indicator (`Total IN = Battery + System`)**, **Battery C-Rate & Charge-Limit Protection**, and **GPU/MUX switcher** (`supergfxctl` + `asus-nb-wmi`) for **ASUS ROG Strix (G17 G713RM)** laptops running Linux & KDE Plasma 6 (Wayland & X11).
@@ -75,6 +75,22 @@ makepkg -si
 
 ---
 
+## ⚙️ Settings & Automations
+
+Open the settings dialog via the tray menu (**⚙️ Settings & Automations...**):
+
+1. **⚡ Profiles & Hardware:** Customize power profiles (`power-saver`, `balanced`, `performance`), refresh rate (`60 Hz` / `240 Hz`), screen brightness (`10-100%`), and keyboard LED backlight per power source (`battery`, `usbc`, `ac`).
+2. **⏱️ Inactivity & Display:** Set custom timeouts for idle dimming, DPMS screen-off, and auto-suspend.
+3. **🚀 Automations & Hooks:**
+   - Execute custom shell commands upon power source transitions or low battery.
+   - User script hooks placed in `~/.config/rog-auto-power/hooks.d/`:
+     - `on_state_change <new_state> <old_state>`
+     - `battery_low <capacity>`
+     - `battery_critical <capacity>`
+   - Persistent user configuration stored at `~/.config/rog-auto-power/config.json`.
+
+---
+
 ## 🛠️ CLI Usage
 
 ```bash
@@ -96,7 +112,7 @@ auto-power-profile.py --once
 
 ## 👤 Author, Credits & License
 
-* **Author & Maintainer:** **Marcel Berghaus ([Gigoslav](https://github.com/Gigoslav))** — `<berghaus.marcel@gmail.com>`
-* **Website:** **[https://lexchaos.de](https://lexchaos.de)**
+* **Author & Maintainer:** **Marcel Berghaus ([Mountainhouse Software Solutions](https://mountain-house.dev) / [Gigoslav](https://github.com/Gigoslav))** — `<berghaus.marcel@gmail.com>`
+* **Website:** **[https://mountain-house.dev](https://mountain-house.dev)**
 * **License:** Licensed under the **GNU General Public License v3.0 or later (`GPL-3.0-or-later`)** — see [LICENSE](LICENSE) and [NOTICE](NOTICE).
-* **Attribution Requirement (GPLv3 §7b):** All copies, packages, forks, or derivative works **must** retain the original copyright notice, author attribution (`Marcel Berghaus / Gigoslav`), website (`https://lexchaos.de`), and repository link.
+* **Attribution Requirement (GPLv3 §7b):** All copies, packages, forks, or derivative works **must** retain the original copyright notice, author attribution (`Marcel Berghaus / Mountainhouse Software Solutions`), website (`https://mountain-house.dev`), and repository link.

@@ -3,7 +3,7 @@
 🇬🇧 **[English](README.md)** | 🇩🇪 **Deutsch**
 
 [![Lizenz: GPL v3+](https://img.shields.io/badge/Lizenz-GPLv3%2B-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
-[![Version](https://img.shields.io/badge/Version-0.1.2-brightgreen.svg)](https://github.com/Gigoslav/rog-auto-power/releases)
+[![Version](https://img.shields.io/badge/Version-0.2.0-brightgreen.svg)](https://github.com/Gigoslav/rog-auto-power/releases)
 [![Plattform](https://img.shields.io/badge/Plattform-Linux%20%7C%20Arch%20%7C%20KDE%20Plasma%206-informational.svg)](https://github.com/Gigoslav/rog-auto-power)
 
 Intelligente 3-Stufen-Energieverwaltung, automatische Bildwiederholraten-Umschaltung (`60 Hz` ↔ `240 Hz`), **Echtzeit-Watt-Anzeige in der KDE-Systemleiste (`Eingang Gesamt = Akku + System`)**, **Akku-Schutzmodus mit C-Raten-Anzeige** sowie **GPU-/Hardware-MUX-Umschalter** (`supergfxctl` + `asus-nb-wmi`) für **ASUS ROG Strix (G17 G713RM)** Laptops unter Linux & KDE Plasma 6 (Wayland & X11).
@@ -75,6 +75,22 @@ makepkg -si
 
 ---
 
+## ⚙️ Einstellungen & Automationen
+
+Über das Tray-Menü (**⚙️ Einstellungen & Automationen...**) öffnet sich ein modernes Konfigurationsfenster:
+
+1. **⚡ Profile & Hardware:** Individuelle Festlegung von Energieprofil (`power-saver`, `balanced`, `performance`), Bildwiederholrate (`60 Hz` / `240 Hz`), Display-Helligkeit (`10-100%`) und Tastaturbeleuchtung pro Stromquelle (`battery`, `usbc`, `ac`).
+2. **⏱️ Inaktivität & Display:** Einstellbare Timeouts für Inaktivitäts-Abdunkelung (Dimming), Bildschirm-Ausschaltung (DPMS) und automatischen Standby.
+3. **🚀 Automationen & Hooks:**
+   - Eigene Shell-Befehle bei Statuswechsel (`battery`, `usbc`, `ac`) und bei schwachem Akku (`on_low_command`).
+   - Shell-Hooks im Verzeichnis `~/.config/rog-auto-power/hooks.d/`:
+     - `on_state_change <neuer_status> <alter_status>`
+     - `battery_low <kapazität>`
+     - `battery_critical <kapazität>`
+   - Konfigurationsdatei liegt menschenlesbar unter `~/.config/rog-auto-power/config.json`.
+
+---
+
 ## 🛠️ Befehlszeile (CLI)
 
 ```bash
@@ -96,7 +112,7 @@ auto-power-profile.py --once
 
 ## 👤 Autor, Credits & Lizenz
 
-* **Autor & Maintainer:** **Marcel Berghaus ([Gigoslav](https://github.com/Gigoslav))** — `<berghaus.marcel@gmail.com>`
-* **Webseite:** **[https://lexchaos.de](https://lexchaos.de)**
+* **Autor & Maintainer:** **Marcel Berghaus ([Mountainhouse Software Solutions](https://mountain-house.dev) / [Gigoslav](https://github.com/Gigoslav))** — `<berghaus.marcel@gmail.com>`
+* **Webseite:** **[https://mountain-house.dev](https://mountain-house.dev)**
 * **Lizenz:** Veröffentlicht unter der **GNU General Public License v3.0 oder höher (`GPL-3.0-or-later`)** — siehe [LICENSE](LICENSE) und [NOTICE](NOTICE).
-* **Pflicht zur Namensnennung (GPLv3 § 7b):** Alle Kopien, Pakete, Forks oder abgeleiteten Werke **müssen** den ursprünglichen Copyright-Vermerk, die Autoren-Nennung (`Marcel Berghaus / Gigoslav`), die Webseite (`https://lexchaos.de`) sowie den Repository-Link beibehalten.
+* **Pflicht zur Namensnennung (GPLv3 § 7b):** Alle Kopien, Pakete, Forks oder abgeleiteten Werke **müssen** den ursprünglichen Copyright-Vermerk, die Autoren-Nennung (`Marcel Berghaus / Mountainhouse Software Solutions`), die Webseite (`https://mountain-house.dev`) sowie den Repository-Link beibehalten.

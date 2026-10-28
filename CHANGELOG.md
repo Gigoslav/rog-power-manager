@@ -3,6 +3,35 @@
 All notable changes to **`rog-auto-power`** are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] - 2026-10-28
+### Added
+- **Interactive GUI Settings & Automations (`SettingsDialog`):**
+  - Graphical settings dialog accessible directly from the tray menu (`⚙️ Einstellungen & Automationen...` / `⚙️ Settings & Automations...`).
+  - **Profiles & Hardware Tab:** Live configuration of power profile (`power-saver`, `balanced`, `performance`), refresh rate (`60Hz` / `240Hz`), screen brightness (`10-100%`), and keyboard lighting (`0-3`) per power source (`battery`, `usbc`, `ac`).
+  - **Inactivity & Display Tab:** Customizable timeouts for display dimming, DPMS screen-off, and auto-suspend per power source.
+  - **Automations & Hooks Tab:** Custom shell commands triggered on power source transition, custom battery alert thresholds, and direct access to the hooks directory.
+- **Config & Extensibility Engine:**
+  - Configuration saved to `~/.config/rog-auto-power/config.json` with sensible defaults and persistent user overrides.
+  - User hooks directory `~/.config/rog-auto-power/hooks.d/` executing arbitrary executable scripts for `on_state_change`, `battery_low`, and `battery_critical`.
+- **Modern GUI About Window (`AboutDialog`):**
+  - Replaced simple web popup with a dedicated dark-themed dialog displaying developer information, organization branding, links, and live system telemetry (power source, active profile, refresh rate, battery level/limit, RTX 3060 D3cold sleep state).
+- **Brand Update:**
+  - Updated author organization and website to **Mountainhouse Software Solutions** (`https://mountain-house.dev`).
+
+## [0.2.0] - 2026-10-28
+### Added
+- **Full KDE PowerDevil Replacement:**
+  - **Inactivity Idle Management (KIdleTime):** Native Wayland/X11 idle detection managing 3-state display dimming (to 25%), DPMS screen off (`kscreen-doctor --dpms off`), and auto-suspend (`loginctl suspend`) with automatic wake restoration on user resume.
+  - **Freedesktop D-Bus Services:** Exports standard `org.freedesktop.PowerManagement` and `org.freedesktop.PowerManagement.Inhibit` so web browsers (Chrome, Firefox) and media players (VLC, MPV) can inhibit idle sleep and blanking.
+  - **KDE Solid D-Bus Drop-in:** Exports `org.kde.Solid.PowerManagement.Actions.BrightnessControl`, `KeyboardBrightnessControl`, and `PolicyAgent` so laptop Fn keys and KDE widgets interact directly with `rog-auto-power`.
+  - **Keep Awake / Presentation Mode:** Tray menu toggle (`☕ System wachhalten`) to prevent dimming, display blanking, and sleep.
+  - **Low & Critical Battery Alerts:** Proactive warning notification at ≤ 10% battery, and critical alert with automatic emergency suspend at ≤ 5% to prevent data loss.
+  - **Quick Display & Keyboard Controls:** Added submenus to the tray for 10%, 25%, 50%, 75%, 100% display brightness and 4-level keyboard backlighting.
+  - **Session Actions:** Added Lock Screen, Sleep (Suspend), and Hibernate directly to the tray menu.
+- **Unprivileged Direct Sysfs Access (No Sudo Required):** Shipped `99-rog-auto-power.rules` (udev) and `rog-auto-power.conf` (`systemd-tmpfiles`) granting direct user write permissions to display backlight, keyboard backlight, battery charge limit, ASUS WMI features (panel overdrive, GPU Mux), and CPU boost.
+- **Clean Sudo-Free GitHub & AUR Installation:** Removed `/etc/sudoers.d` requirement. The daemon runs 100% as an unprivileged user service without polling `sudo`.
+- **Automated Conflict Resolution:** Installer cleanly stops and masks `plasma-powerdevil.service` to prevent background interference.
+
 ## [0.1.2] - 2026-10-16
 ### Changed
 - **License & Mandatory Credits (`GPL-3.0-or-later`):** Switched to GNU General Public License v3.0 or later (`GPL-3.0-or-later`) with explicit Section 7(b) author attribution notice (`NOTICE` & `AUTHORS`) and SPDX headers across all files.
