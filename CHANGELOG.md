@@ -3,6 +3,22 @@
 All notable changes to **`rog-power-manager`** are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.1] - 2026-10-28
+### Added
+- **Native KDE Plasma Fn Hotkeys & OSD Integration:**
+  - Full listener for `kglobalaccel` shortcuts on `org.kde.kglobalaccel.Component` (`org_kde_powerdevil`).
+  - Hardware control and native KDE Plasma OSD popups for:
+    - Screen brightness up/down (`Fn+F8` / `Fn+F7`) in 5% and 1% steps.
+    - Keyboard backlight up/down/toggle (`Fn+F3` / `Fn+F2`) between levels 0-3.
+    - Power profile cycling (`Fn+F5` / `powerProfile`) between `power-saver`, `balanced`, and `performance` with synchronized refresh rate and fan curves.
+    - Screen turn-off, sleep, and hibernate shortcuts.
+  - CLI flags: `--profile`, `--brightness`, and `--kbd` for direct command-line or external shortcut control.
+
+### Fixed
+- **AMD Ryzen CPU Boost & Battery Performance Profile:**
+  - Resolved `amd_pstate` CPU driver error 13 when switching to `performance` on battery power by ensuring CPU boost (`/sys/devices/system/cpu/cpufreq/boost`) is enabled prior to profile activation.
+  - Fixed daemon state loop overriding manual performance profile selections on battery power; profiles now persist cleanly until an actual power source transition occurs.
+
 ## [0.3.0] - 2026-10-28
 ### Added
 - **Project Renamed to `rog-power-manager`:**

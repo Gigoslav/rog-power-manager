@@ -7,7 +7,7 @@ set -e
 
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-echo "=== Installing ROG Power Manager & Fan Control (v0.3.0) ==="
+echo "=== Installing ROG Power Manager & Fan Control (v0.3.1) ==="
 
 mkdir -p ~/.local/bin ~/.config/systemd/user ~/.local/share/applications
 ln -sf "$REPO_DIR/rog-power-manager.py" ~/.local/bin/rog-power-manager

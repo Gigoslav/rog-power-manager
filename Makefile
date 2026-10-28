@@ -3,7 +3,7 @@
 # Standard Linux/FHS Makefile for rog-power-manager
 
 pkgname := rog-power-manager
-VERSION := 0.3.0
+VERSION := 0.3.1
 
 PREFIX ?= /usr
 BINDIR ?= $(PREFIX)/bin

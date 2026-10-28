@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 pkgname=rog-power-manager
-pkgver=0.3.0
+pkgver=0.3.1
 pkgrel=1
 pkgdesc="ASUS ROG Strix auto power manager, fan control (silent/balanced/turbo/max), 60/240Hz switcher, live Wattage tray badge & GPU/MUX switcher"
 arch=('any')

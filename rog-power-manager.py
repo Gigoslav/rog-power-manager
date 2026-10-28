@@ -37,7 +37,7 @@ from PyQt6.QtWidgets import (
 )
 
 APP_NAME = "rog-power-manager"
-APP_VERSION = "0.3.0"
+APP_VERSION = "0.3.1"
 APP_AUTHOR = "Marcel Berghaus (Gigoslav)"
 APP_ORG = "Mountainhouse Software Solutions"
 APP_EMAIL = "berghaus.marcel@gmail.com"
@@ -477,6 +477,112 @@ def set_kbd_brightness(level: int):
             pass
 
 
+def get_brightness_pct() -> int:
+    """Get screen brightness in percent (0-100)."""
+    cur = get_raw_brightness()
+    mx = get_max_brightness()
+    if mx > 0:
+        return max(0, min(100, int(round((cur / float(mx)) * 100))))
+    return 50
+
+
+def show_kde_osd_brightness(percent: int):
+    """Notify KDE Plasma on-screen display (OSD) about screen brightness changes."""
+    try:
+        bus = dbus.SessionBus()
+        osd = bus.get_object("org.kde.plasmashell", "/org/kde/osdService")
+        iface = dbus.Interface(osd, "org.kde.osdService")
+        iface.brightnessChanged(int(percent))
+    except Exception:
+        pass
+
+
+def show_kde_osd_kbd(level: int):
+    """Notify KDE Plasma on-screen display (OSD) about keyboard backlight changes."""
+    try:
+        pct = int(round((level / 3.0) * 100))
+        bus = dbus.SessionBus()
+        osd = bus.get_object("org.kde.plasmashell", "/org/kde/osdService")
+        iface = dbus.Interface(osd, "org.kde.osdService")
+        iface.keyboardBrightnessChanged(int(pct))
+    except Exception:
+        pass
+
+
+def show_kde_osd_profile(profile: str):
+    """Notify KDE Plasma on-screen display (OSD) about power profile changes."""
+    try:
+        bus = dbus.SessionBus()
+        osd = bus.get_object("org.kde.plasmashell", "/org/kde/osdService")
+        iface = dbus.Interface(osd, "org.kde.osdService")
+        iface.powerProfileChanged(str(profile))
+    except Exception:
+        pass
+
+
+def step_screen_brightness(delta_pct: int) -> int:
+    """Increment or decrement screen brightness by delta_pct (e.g. +5, -5, +1, -1)."""
+    cur_pct = get_brightness_pct()
+    if abs(delta_pct) >= 5:
+        if delta_pct > 0:
+            target = min(100, ((cur_pct // 5) + 1) * 5 if cur_pct % 5 != 0 else cur_pct + 5)
+        else:
+            target = max(1, ((cur_pct - 1) // 5) * 5)
+    else:
+        target = max(1, min(100, cur_pct + delta_pct))
+    set_brightness_pct(target)
+    show_kde_osd_brightness(target)
+    return target
+
+
+def step_kbd_brightness(delta: int) -> int:
+    """Increment or decrement keyboard backlight level (0-3)."""
+    cur = get_kbd_brightness()
+    target = max(0, min(3, cur + delta))
+    set_kbd_brightness(target)
+    show_kde_osd_kbd(target)
+    return target
+
+
+def toggle_kbd_brightness() -> int:
+    """Toggle keyboard backlight between 0 and 3."""
+    cur = get_kbd_brightness()
+    target = 0 if cur > 0 else 3
+    set_kbd_brightness(target)
+    show_kde_osd_kbd(target)
+    return target
+
+
+def cycle_power_profile(controller=None) -> str:
+    """Cycle between power profiles (power-saver -> balanced -> performance)."""
+    cur = get_current_power_profile()
+    cycle = ["power-saver", "balanced", "performance"]
+    try:
+        idx = cycle.index(cur)
+        next_prof = cycle[(idx + 1) % len(cycle)]
+    except ValueError:
+        next_prof = "balanced"
+
+    if controller:
+        controller.auto_mode = False
+        apply_hardware_tunings(get_power_source(), profile=next_prof)
+        set_power_profile(next_prof)
+        fan_map = {"power-saver": "silent", "balanced": "balanced", "performance": "turbo"}
+        hz_map = {"power-saver": 60, "balanced": 60, "performance": 240}
+        if next_prof in fan_map:
+            set_fan_mode(fan_map[next_prof])
+        if next_prof in hz_map:
+            set_display_refresh_rate(hz_map[next_prof])
+        controller.cached_profile = next_prof
+        controller.cached_panel = get_panel_info()
+    else:
+        apply_hardware_tunings(get_power_source(), profile=next_prof)
+        set_power_profile(next_prof)
+
+    show_kde_osd_profile(next_prof)
+    return next_prof
+
+
 def get_backlight_ratio() -> float:
     """Get screen brightness ratio (0.0 to 1.0) directly from sysfs."""
     cur = get_raw_brightness()
@@ -492,23 +598,30 @@ def set_screen_and_kbd_brightness(screen_pct: int, kbd_level: int):
     set_kbd_brightness(kbd_level)
 
 
-def apply_hardware_tunings(state: str):
+def apply_hardware_tunings(state: str, profile: str = None):
     """Set CPU boost, Panel Overdrive, and PCIe Runtime PM directly via sysfs without sudo."""
-    # 1. Panel Overdrive (0 on battery/usbc, 1 on ac)
+    if profile is None:
+        cfg = get_state_config().get(state, {})
+        profile = cfg.get("profile", "balanced")
+
+    # 1. Panel Overdrive (1 if state == "ac" or profile == "performance", else 0)
     panel_od_file = "/sys/devices/platform/asus-nb-wmi/panel_od"
     if os.path.exists(panel_od_file):
         try:
             with open(panel_od_file, "w") as f:
-                f.write("1\n" if state == "ac" else "0\n")
+                f.write("1\n" if (state == "ac" or profile == "performance") else "0\n")
         except Exception:
             pass
 
-    # 2. CPU Boost (0 on battery, 1 on usbc/ac)
+    # 2. CPU Boost Master Switch
+    # Note: On AMD P-State (Zen 3+ / 6800H), the global boost switch MUST remain 1;
+    # otherwise power-profiles-daemon fails with Error 13 (EINVAL) when configuring policy*/boost.
+    # power-profiles-daemon manages EPP power savings per-profile automatically.
     boost_file = "/sys/devices/system/cpu/cpufreq/boost"
     if os.path.exists(boost_file):
         try:
             with open(boost_file, "w") as f:
-                f.write("0\n" if state == "battery" else "1\n")
+                f.write("1\n")
         except Exception:
             pass
 
@@ -612,6 +725,10 @@ class FreedesktopInhibitService(dbus.service.Object):
         return self.pm_service.HasInhibit()
 
 
+KDE_BRIGHTNESS_SERVICE = None
+KDE_KBD_BRIGHTNESS_SERVICE = None
+
+
 class KDEBrightnessControlService(dbus.service.Object):
     """Provides org.kde.Solid.PowerManagement.Actions.BrightnessControl interface."""
     def __init__(self, bus_name):
@@ -636,10 +753,25 @@ class KDEBrightnessControlService(dbus.service.Object):
     @dbus.service.method("org.kde.Solid.PowerManagement.Actions.BrightnessControl", in_signature="i")
     def setBrightness(self, val):
         set_raw_brightness(val)
+        mx = get_max_brightness()
+        pct = int(round((val / float(mx)) * 100)) if mx > 0 else 50
+        show_kde_osd_brightness(pct)
+        try:
+            self.brightnessChanged(val)
+        except Exception:
+            pass
 
     @dbus.service.method("org.kde.Solid.PowerManagement.Actions.BrightnessControl", in_signature="i")
     def setBrightnessSilent(self, val):
         set_raw_brightness(val)
+        try:
+            self.brightnessChanged(val)
+        except Exception:
+            pass
+
+    @dbus.service.signal("org.kde.Solid.PowerManagement.Actions.BrightnessControl", signature="i")
+    def brightnessChanged(self, val):
+        pass
 
 
 class KDEKeyboardBrightnessControlService(dbus.service.Object):
@@ -662,10 +794,23 @@ class KDEKeyboardBrightnessControlService(dbus.service.Object):
     @dbus.service.method("org.kde.Solid.PowerManagement.Actions.KeyboardBrightnessControl", in_signature="i")
     def setKeyboardBrightness(self, val):
         set_kbd_brightness(val)
+        show_kde_osd_kbd(val)
+        try:
+            self.keyboardBrightnessChanged(val)
+        except Exception:
+            pass
 
     @dbus.service.method("org.kde.Solid.PowerManagement.Actions.KeyboardBrightnessControl", in_signature="i")
     def setKeyboardBrightnessSilent(self, val):
         set_kbd_brightness(val)
+        try:
+            self.keyboardBrightnessChanged(val)
+        except Exception:
+            pass
+
+    @dbus.service.signal("org.kde.Solid.PowerManagement.Actions.KeyboardBrightnessControl", signature="i")
+    def keyboardBrightnessChanged(self, val):
+        pass
 
 
 class KDEPolicyAgentService(dbus.service.Object):
@@ -1037,6 +1182,15 @@ def set_power_profile(profile: str) -> bool:
     if current == profile:
         return False
 
+    # Ensure global CPU boost is enabled so power-profiles-daemon amd_pstate driver does not fail
+    boost_file = "/sys/devices/system/cpu/cpufreq/boost"
+    if os.path.exists(boost_file):
+        try:
+            with open(boost_file, "w") as f:
+                f.write("1\n")
+        except Exception:
+            pass
+
     success = False
     try:
         subprocess.check_call(["powerprofilesctl", "set", profile], stderr=subprocess.DEVNULL)
@@ -1344,43 +1498,47 @@ class PowerManagerController:
             return
 
         new_state = get_power_source()
+        state_changed = (self.last_state is None or self.last_state != new_state)
+
+        if not state_changed and not force:
+            self.cached_panel = get_panel_info()
+            self.cached_profile = get_current_power_profile()
+            return
+
         cfg = get_state_config()[new_state]
         prof = cfg["profile"]
         hz = cfg["hz"]
 
-        state_changed = (self.last_state is not None and self.last_state != new_state)
+        set_screen_and_kbd_brightness(cfg["brightness"], cfg["kbd"])
+        apply_hardware_tunings(new_state, profile=prof)
         prof_changed = set_power_profile(prof)
         rate_changed = set_display_refresh_rate(hz)
 
-        if state_changed or force:
-            set_screen_and_kbd_brightness(cfg["brightness"], cfg["kbd"])
-            apply_hardware_tunings(new_state)
-            if CURRENT_FAN_MODE == "auto":
-                target_fan = cfg.get("fan_mode", "auto")
-                set_fan_mode(target_fan)
-                CURRENT_FAN_MODE = "auto"
-            if self.idle_mgr:
-                self.idle_mgr.update_state(new_state)
+        if CURRENT_FAN_MODE == "auto":
+            target_fan = cfg.get("fan_mode", "auto")
+            set_fan_mode(target_fan)
+            CURRENT_FAN_MODE = "auto"
+        if self.idle_mgr:
+            self.idle_mgr.update_state(new_state)
 
-            # Run user automations & hooks on power state change
-            if state_changed:
-                cmd = CONFIG_MGR.data.get("profiles", {}).get(new_state, {}).get("command", "")
-                CONFIG_MGR.run_command(cmd, {"ROG_POWER_STATE": new_state, "ROG_PREV_STATE": str(self.last_state)})
-                CONFIG_MGR.run_hook("on_state_change", new_state, str(self.last_state))
+        # Run user automations & hooks on power state change
+        if self.last_state is not None and self.last_state != new_state:
+            cmd = CONFIG_MGR.data.get("profiles", {}).get(new_state, {}).get("command", "")
+            CONFIG_MGR.run_command(cmd, {"ROG_POWER_STATE": new_state, "ROG_PREV_STATE": str(self.last_state)})
+            CONFIG_MGR.run_hook("on_state_change", new_state, str(self.last_state))
 
         self.cached_panel = get_panel_info()
         self.cached_profile = get_current_power_profile()
         _, _, current_rate, _ = self.cached_panel
         display_ok = (current_rate is not None and abs(current_rate - hz) < 1.0)
 
-        if display_ok:
+        if display_ok or self.last_state is None:
             self.last_state = new_state
 
-        if self.verbose and (state_changed or prof_changed or rate_changed or force):
+        if self.verbose:
             print(f"[AutoPower] State: {new_state.upper()} | Profile: {prof} | Refresh Rate: {hz}Hz (Display OK: {display_ok})")
 
-        if state_changed or force:
-            send_notification(cfg["title"], cfg["msg"], cfg["icon"])
+        send_notification(cfg["title"], cfg["msg"], cfg["icon"])
 
 
 class AboutDialog(QDialog):
@@ -1758,13 +1916,94 @@ def run_gui_daemon(controller: PowerManagerController):
 
         try:
             kde_bus_name = dbus.service.BusName("org.kde.Solid.PowerManagement", session_bus, do_not_queue=True)
-            KDEBrightnessControlService(kde_bus_name)
-            KDEKeyboardBrightnessControlService(kde_bus_name)
+            global KDE_BRIGHTNESS_SERVICE, KDE_KBD_BRIGHTNESS_SERVICE
+            KDE_BRIGHTNESS_SERVICE = KDEBrightnessControlService(kde_bus_name)
+            KDE_KBD_BRIGHTNESS_SERVICE = KDEKeyboardBrightnessControlService(kde_bus_name)
             if pm_service:
                 KDEPolicyAgentService(kde_bus_name, pm_service)
             print("[D-Bus] Registered org.kde.Solid.PowerManagement Actions & PolicyAgent")
         except Exception as e:
             print(f"[D-Bus] org.kde.Solid.PowerManagement: {e}")
+
+        def on_global_shortcut(component_unique, shortcut_unique, timestamp):
+            comp = str(component_unique)
+            sc = str(shortcut_unique)
+            if comp != "org_kde_powerdevil":
+                return
+
+            if sc == "Increase Screen Brightness":
+                step_screen_brightness(5)
+                if KDE_BRIGHTNESS_SERVICE:
+                    try:
+                        KDE_BRIGHTNESS_SERVICE.brightnessChanged(get_raw_brightness())
+                    except Exception:
+                        pass
+            elif sc == "Decrease Screen Brightness":
+                step_screen_brightness(-5)
+                if KDE_BRIGHTNESS_SERVICE:
+                    try:
+                        KDE_BRIGHTNESS_SERVICE.brightnessChanged(get_raw_brightness())
+                    except Exception:
+                        pass
+            elif sc == "Increase Screen Brightness Small":
+                step_screen_brightness(1)
+                if KDE_BRIGHTNESS_SERVICE:
+                    try:
+                        KDE_BRIGHTNESS_SERVICE.brightnessChanged(get_raw_brightness())
+                    except Exception:
+                        pass
+            elif sc == "Decrease Screen Brightness Small":
+                step_screen_brightness(-1)
+                if KDE_BRIGHTNESS_SERVICE:
+                    try:
+                        KDE_BRIGHTNESS_SERVICE.brightnessChanged(get_raw_brightness())
+                    except Exception:
+                        pass
+            elif sc == "Increase Keyboard Brightness":
+                lvl = step_kbd_brightness(1)
+                if KDE_KBD_BRIGHTNESS_SERVICE:
+                    try:
+                        KDE_KBD_BRIGHTNESS_SERVICE.keyboardBrightnessChanged(lvl)
+                    except Exception:
+                        pass
+            elif sc == "Decrease Keyboard Brightness":
+                lvl = step_kbd_brightness(-1)
+                if KDE_KBD_BRIGHTNESS_SERVICE:
+                    try:
+                        KDE_KBD_BRIGHTNESS_SERVICE.keyboardBrightnessChanged(lvl)
+                    except Exception:
+                        pass
+            elif sc == "Toggle Keyboard Backlight":
+                lvl = toggle_kbd_brightness()
+                if KDE_KBD_BRIGHTNESS_SERVICE:
+                    try:
+                        KDE_KBD_BRIGHTNESS_SERVICE.keyboardBrightnessChanged(lvl)
+                    except Exception:
+                        pass
+            elif sc == "powerProfile":
+                cycle_power_profile(controller)
+                try:
+                    update_tray()
+                except Exception:
+                    pass
+            elif sc == "Turn Off Screen":
+                subprocess.Popen(["kscreen-doctor", "--dpms", "off"])
+            elif sc == "Sleep":
+                subprocess.Popen(["loginctl", "suspend"])
+            elif sc == "Hibernate":
+                subprocess.Popen(["loginctl", "hibernate"])
+            elif sc in ("PowerOff", "PowerDown"):
+                subprocess.Popen(["loginctl", "poweroff"])
+
+        try:
+            session_bus.add_signal_receiver(
+                on_global_shortcut,
+                signal_name="globalShortcutPressed",
+                dbus_interface="org.kde.kglobalaccel.Component"
+            )
+            print("[D-Bus] Listening for KDE global shortcuts (Fn Brightness/Kbd/Profile)")
+        except Exception as e:
+            print(f"[D-Bus] kglobalaccel signal registration error: {e}")
     except Exception as e:
         print(f"[D-Bus] Session bus error: {e}")
 
@@ -1872,8 +2111,12 @@ def run_gui_daemon(controller: PowerManagerController):
     def manual_set(prof: str, hz: int):
         controller.auto_mode = False
         act_auto.setChecked(False)
+        apply_hardware_tunings(get_power_source(), profile=prof)
         set_power_profile(prof)
         set_display_refresh_rate(hz)
+        fan_map = {"power-saver": "silent", "balanced": "balanced", "performance": "turbo"}
+        if prof in fan_map:
+            set_fan_mode(fan_map[prof])
         controller.cached_profile = get_current_power_profile()
         controller.cached_panel = get_panel_info()
         send_notification(tr("manual_title"), f"{tr(f'prof_{prof}')} | {hz} Hz")
@@ -2277,6 +2520,9 @@ def main():
     parser.add_argument("--once", action="store_true", help="Apply current settings once and exit")
     parser.add_argument("--status", action="store_true", help="Print current status and detection")
     parser.add_argument("--fan", choices=["auto", "silent", "balanced", "turbo", "max"], help="Set ASUS fan mode")
+    parser.add_argument("--profile", choices=["power-saver", "balanced", "performance"], help="Set power profile")
+    parser.add_argument("--brightness", type=int, help="Set screen brightness percentage (1-100)")
+    parser.add_argument("--kbd", type=int, choices=[0, 1, 2, 3], help="Set keyboard backlight level (0-3)")
     parser.add_argument("--lang", choices=["de", "en"], help="Override display language (de/en)")
     args = parser.parse_args()
 
@@ -2296,6 +2542,25 @@ def main():
     if args.fan:
         set_fan_mode(args.fan)
         print(f"[FanControl] Fan mode set to: {args.fan}")
+        return
+
+    if args.profile:
+        apply_hardware_tunings(get_power_source(), profile=args.profile)
+        set_power_profile(args.profile)
+        print(f"[PowerProfile] Profile set to: {args.profile}")
+        return
+
+    if args.brightness is not None:
+        val = max(1, min(100, args.brightness))
+        set_brightness_pct(val)
+        show_kde_osd_brightness(val)
+        print(f"[Brightness] Screen brightness set to: {val}%")
+        return
+
+    if args.kbd is not None:
+        set_kbd_brightness(args.kbd)
+        show_kde_osd_kbd(args.kbd)
+        print(f"[Keyboard] Backlight set to level: {args.kbd}")
         return
 
     if args.status:

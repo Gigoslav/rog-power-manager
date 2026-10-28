@@ -3,7 +3,7 @@
 🇬🇧 **[English](README.md)** | 🇩🇪 **Deutsch**
 
 [![Lizenz: GPL v3+](https://img.shields.io/badge/Lizenz-GPLv3%2B-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
-[![Version](https://img.shields.io/badge/Version-0.3.0-brightgreen.svg)](https://github.com/Gigoslav/rog-power-manager/releases)
+[![Version](https://img.shields.io/badge/Version-0.3.1-brightgreen.svg)](https://github.com/Gigoslav/rog-power-manager/releases)
 [![Plattform](https://img.shields.io/badge/Plattform-Linux%20%7C%20Arch%20%7C%20KDE%20Plasma%206-informational.svg)](https://github.com/Gigoslav/rog-power-manager)
 
 Intelligente 3-Stufen-Energieverwaltung, **ASUS-Lüftersteuerung (`Silent`, `Balanced`, `Turbo`, `Max`)**, automatische Bildwiederholraten-Umschaltung (`60 Hz` ↔ `240 Hz`), **Echtzeit-Watt-Anzeige in der KDE-Systemleiste (`Eingang Gesamt = Akku + System`)**, **Akku-Schutzmodus mit C-Raten-Anzeige** sowie **GPU-/Hardware-MUX-Umschalter** (`supergfxctl` + `asus-nb-wmi`) für **ASUS ROG Strix (G17 G713RM)** Laptops unter Linux & KDE Plasma 6 (Wayland & X11).
