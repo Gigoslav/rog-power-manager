@@ -159,40 +159,104 @@ FanTelemetry getFanTelemetry() {
     for (const QString &hwEntry : baseDir.entryList(QDir::Dirs | QDir::NoDotAndDotDot)) {
         QString f1Path = QString("/sys/devices/platform/asus-nb-wmi/hwmon/%1/fan1_input").arg(hwEntry);
         QString f2Path = QString("/sys/devices/platform/asus-nb-wmi/hwmon/%1/fan2_input").arg(hwEntry);
-        if (QFile::exists(f1Path)) ft.cpuRpm = readSysfs(f1Path).toInt();
-        if (QFile::exists(f2Path)) ft.gpuRpm = readSysfs(f2Path).toInt();
-        if (ft.cpuRpm > 0 || ft.gpuRpm > 0) break;
+        if (QFile::exists(f1Path) || QFile::exists(f2Path)) {
+            ft.cpuRpm = readSysfs(f1Path).toInt();
+            ft.gpuRpm = readSysfs(f2Path).toInt();
+            break;
+        }
     }
     return ft;
+}
+
+QString detectFanMode() {
+    QString customHwmon;
+    QDir baseDir("/sys/devices/platform/asus-nb-wmi/hwmon");
+    for (const QString &hwEntry : baseDir.entryList(QDir::Dirs | QDir::NoDotAndDotDot)) {
+        QString namePath = QString("/sys/devices/platform/asus-nb-wmi/hwmon/%1/name").arg(hwEntry);
+        if (readSysfs(namePath) == "asus_custom_fan_curve") {
+            customHwmon = QString("/sys/devices/platform/asus-nb-wmi/hwmon/%1").arg(hwEntry);
+            break;
+        }
+    }
+
+    if (!customHwmon.isEmpty()) {
+        int pwmEn = readSysfs(customHwmon + "/pwm1_enable").toInt();
+        if (pwmEn == 1) {
+            int p1 = readSysfs(customHwmon + "/pwm1_auto_point1_pwm").toInt();
+            if (p1 >= 250) return "max";
+            return "turbo";
+        }
+    }
+
+    QString therm = readSysfs("/sys/devices/platform/asus-nb-wmi/throttle_thermal_policy");
+    if (therm == "2") return "silent";
+    if (therm == "0") return "balanced";
+    if (therm == "1") return "turbo";
+    return currentFanMode.isEmpty() ? "auto" : currentFanMode;
 }
 
 bool setFanMode(const QString &mode) {
     currentFanMode = mode;
     bool written = false;
 
+    // Locate asus_custom_fan_curve hwmon
+    QString customHwmon;
+    QDir baseDir("/sys/devices/platform/asus-nb-wmi/hwmon");
+    for (const QString &hwEntry : baseDir.entryList(QDir::Dirs | QDir::NoDotAndDotDot)) {
+        QString namePath = QString("/sys/devices/platform/asus-nb-wmi/hwmon/%1/name").arg(hwEntry);
+        if (readSysfs(namePath) == "asus_custom_fan_curve") {
+            customHwmon = QString("/sys/devices/platform/asus-nb-wmi/hwmon/%1").arg(hwEntry);
+            break;
+        }
+    }
+
     if (mode == "max") {
-        QString curveFile = "/sys/devices/platform/asus-nb-wmi/asus_custom_fan_curve";
-        if (QFile::exists(curveFile)) {
-            QString maxCurve = "1 30:255 40:255 50:255 60:255 70:255 80:255 90:255 100:255";
-            writeSysfs(curveFile, maxCurve);
-            written = true;
-        }
         writeSysfs("/sys/devices/platform/asus-nb-wmi/throttle_thermal_policy", "1");
-    } else {
-        QString curveFile = "/sys/devices/platform/asus-nb-wmi/asus_custom_fan_curve";
-        if (QFile::exists(curveFile)) {
-            writeSysfs(curveFile, "0");
+        writeSysfs("/sys/firmware/acpi/platform_profile", "performance");
+        if (!customHwmon.isEmpty()) {
+            for (int i = 1; i <= 8; ++i) {
+                writeSysfs(QString("%1/pwm1_auto_point%2_pwm").arg(customHwmon).arg(i), "255");
+                writeSysfs(QString("%1/pwm2_auto_point%2_pwm").arg(customHwmon).arg(i), "255");
+            }
+            writeSysfs(customHwmon + "/pwm1_enable", "1");
+            writeSysfs(customHwmon + "/pwm2_enable", "1");
         }
-        QMap<QString, QString> thermMap = {
-            {"silent", "2"},
-            {"balanced", "0"},
-            {"turbo", "1"},
-            {"auto", "0"}
-        };
-        QString tVal = thermMap.value(mode, "0");
-        if (writeSysfs("/sys/devices/platform/asus-nb-wmi/throttle_thermal_policy", tVal)) {
-            written = true;
+        written = true;
+    } else if (mode == "turbo") {
+        writeSysfs("/sys/devices/platform/asus-nb-wmi/throttle_thermal_policy", "1");
+        writeSysfs("/sys/firmware/acpi/platform_profile", "performance");
+        if (!customHwmon.isEmpty()) {
+            QList<int> pwms = {180, 190, 200, 210, 225, 240, 255, 255};
+            for (int i = 1; i <= 8; ++i) {
+                writeSysfs(QString("%1/pwm1_auto_point%2_pwm").arg(customHwmon).arg(i), QString::number(pwms[i - 1]));
+                writeSysfs(QString("%1/pwm2_auto_point%2_pwm").arg(customHwmon).arg(i), QString::number(pwms[i - 1]));
+            }
+            writeSysfs(customHwmon + "/pwm1_enable", "1");
+            writeSysfs(customHwmon + "/pwm2_enable", "1");
         }
+        written = true;
+    } else if (mode == "silent") {
+        if (!customHwmon.isEmpty()) {
+            writeSysfs(customHwmon + "/pwm1_enable", "2");
+            writeSysfs(customHwmon + "/pwm2_enable", "2");
+        }
+        writeSysfs("/sys/devices/platform/asus-nb-wmi/throttle_thermal_policy", "2");
+        writeSysfs("/sys/firmware/acpi/platform_profile", "quiet");
+        written = true;
+    } else if (mode == "balanced") {
+        if (!customHwmon.isEmpty()) {
+            writeSysfs(customHwmon + "/pwm1_enable", "2");
+            writeSysfs(customHwmon + "/pwm2_enable", "2");
+        }
+        writeSysfs("/sys/devices/platform/asus-nb-wmi/throttle_thermal_policy", "0");
+        writeSysfs("/sys/firmware/acpi/platform_profile", "balanced");
+        written = true;
+    } else if (mode == "auto") {
+        if (!customHwmon.isEmpty()) {
+            writeSysfs(customHwmon + "/pwm1_enable", "2");
+            writeSysfs(customHwmon + "/pwm2_enable", "2");
+        }
+        written = true;
     }
 
     if (!written && QFile::exists("/usr/local/bin/rog-power-helper")) {

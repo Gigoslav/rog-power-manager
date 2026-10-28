@@ -30,6 +30,12 @@ private:
     QAction *m_actSysDetail;
     QAction *m_actState;
     QAction *m_actAuto;
+
+    QActionGroup *m_profileGroup;
+    QAction *m_actPs;
+    QAction *m_actBal;
+    QAction *m_actPerf;
+
     QAction *m_actGpuStatus;
     QAction *m_actBatProt;
     QAction *m_actInhibit;

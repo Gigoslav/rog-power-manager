@@ -92,17 +92,33 @@ int main(int argc, char *argv[]) {
         QString stDisp = I18n::tr("st_" + tel.status);
         QString dstDisp = I18n::tr("dst_" + tel.dgpuState);
 
+        QString fMode = Hardware::detectFanMode();
         QString fanCli;
         if (fans.cpuRpm == 0 && fans.gpuRpm == 0) {
-            fanCli = QString("%1 (%2)").arg(I18n::tr("fan_status_off"), I18n::tr("fan_mode_" + Hardware::currentFanMode));
+            fanCli = QString("%1 (%2)").arg(I18n::tr("fan_status_off"), I18n::tr("fan_mode_" + fMode));
         } else {
-            fanCli = QString("CPU %1 RPM | GPU %2 RPM (%3)").arg(fans.cpuRpm).arg(fans.gpuRpm).arg(I18n::tr("fan_mode_" + Hardware::currentFanMode));
+            fanCli = QString("CPU %1 RPM | GPU %2 RPM (%3)").arg(fans.cpuRpm).arg(fans.gpuRpm).arg(I18n::tr("fan_mode_" + fMode));
+        }
+
+        QString etaCli;
+        if (tel.status == "Charging") {
+            double targetWh = tel.energyFullWh * (tel.chargeLimit / 100.0);
+            double remWh = std::max(0.0, targetWh - tel.energyNowWh);
+            if (remWh <= 0.2 || tel.capacity >= tel.chargeLimit) {
+                etaCli = QString(" • %1").arg(I18n::tr("eta_almost").arg(tel.chargeLimit));
+            } else if (tel.batWatts > 0.5) {
+                etaCli = QString(" • %1").arg(I18n::tr("eta_to_limit").arg(remWh / tel.batWatts, 0, 'f', 1).arg(tel.chargeLimit));
+            }
+        } else if (tel.status == "Discharging") {
+            if (tel.batWatts > 0.5 && tel.energyNowWh > 0.0) {
+                etaCli = QString(" • %1").arg(I18n::tr("eta_rem").arg(tel.energyNowWh / tel.batWatts, 0, 'f', 1));
+            }
         }
 
         std::cout << I18n::tr("cli_header").toStdString() << std::endl;
         std::cout << I18n::tr("cli_source").arg(srcLabel).toStdString() << std::endl;
         std::cout << I18n::tr("cli_total_in").arg(tel.totalInWatts, 0, 'f', 2).toStdString() << std::endl;
-        std::cout << I18n::tr("cli_bat").arg(sign).arg(tel.batWatts, 0, 'f', 2).arg(tel.cRate, 0, 'f', 2).arg(stDisp).arg(tel.capacity).arg(tel.chargeLimit).toStdString() << std::endl;
+        std::cout << I18n::tr("cli_bat").arg(sign).arg(tel.batWatts, 0, 'f', 2).arg(tel.cRate, 0, 'f', 2).arg(stDisp).arg(tel.capacity).arg(tel.chargeLimit).arg(etaCli).toStdString() << std::endl;
         std::cout << I18n::tr("cli_sys").arg(tel.sysWatts, 6, 'f', 2).arg(tel.apuWatts, 0, 'f', 1).arg(tel.dgpuWatts, 0, 'f', 1).arg(dstDisp).arg(tel.restWatts, 0, 'f', 1).toStdString() << std::endl;
         std::cout << I18n::tr("cli_prof").arg(profDisp).toStdString() << std::endl;
         std::cout << I18n::tr("cli_panel").arg(panel.name, panel.resolution).arg(panel.currentRate).toStdString() << std::endl;

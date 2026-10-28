@@ -66,6 +66,20 @@ QIcon TrayIcon::createWattIcon(const Hardware::PowerTelemetry &tel) {
     painter.setPen(borderColor);
     painter.drawRoundedRect(2, 2, size - 4, size - 4, 12, 12);
 
+    // Profile indicator dot at top-right
+    QString curProf = m_controller ? m_controller->cachedProfile() : Hardware::getCurrentPowerProfile();
+    QColor dotColor;
+    if (curProf == "performance") {
+        dotColor = QColor(248, 113, 113); // Coral Red
+    } else if (curProf == "balanced") {
+        dotColor = QColor(96, 165, 250);  // Sky Blue
+    } else {
+        dotColor = QColor(52, 211, 153);  // Mint Green
+    }
+    painter.setBrush(dotColor);
+    painter.setPen(QPen(QColor(15, 23, 42, 220), 1.5));
+    painter.drawEllipse(size - 13, 5, 8, 8);
+
     QFont fontTop("Sans Serif", (topText.length() <= 4 ? 16 : 13), QFont::Bold);
     painter.setFont(fontTop);
     painter.setPen(Qt::white);
@@ -116,22 +130,31 @@ void TrayIcon::createMenu() {
 
     m_menu->addSeparator();
 
-    auto actPs = m_menu->addAction(I18n::tr("menu_ps"));
-    connect(actPs, &QAction::triggered, [this]() {
+    m_profileGroup = new QActionGroup(this);
+    m_profileGroup->setExclusive(true);
+
+    m_actPs = m_menu->addAction(I18n::tr("menu_ps"));
+    m_actPs->setCheckable(true);
+    m_profileGroup->addAction(m_actPs);
+    connect(m_actPs, &QAction::triggered, [this]() {
         m_actAuto->setChecked(false);
         m_controller->manualSet("power-saver", 60);
         updateTray();
     });
 
-    auto actBal = m_menu->addAction(I18n::tr("menu_bal"));
-    connect(actBal, &QAction::triggered, [this]() {
+    m_actBal = m_menu->addAction(I18n::tr("menu_bal"));
+    m_actBal->setCheckable(true);
+    m_profileGroup->addAction(m_actBal);
+    connect(m_actBal, &QAction::triggered, [this]() {
         m_actAuto->setChecked(false);
         m_controller->manualSet("balanced", 60);
         updateTray();
     });
 
-    auto actPerf = m_menu->addAction(I18n::tr("menu_perf"));
-    connect(actPerf, &QAction::triggered, [this]() {
+    m_actPerf = m_menu->addAction(I18n::tr("menu_perf"));
+    m_actPerf->setCheckable(true);
+    m_profileGroup->addAction(m_actPerf);
+    connect(m_actPerf, &QAction::triggered, [this]() {
         m_actAuto->setChecked(false);
         m_controller->manualSet("performance", 240);
         updateTray();
@@ -340,13 +363,24 @@ void TrayIcon::updateTray() {
 
     // Lines
     QString lineIn, lineBat, lineSys;
+    QString etaStr;
     if (tel.status == "Charging") {
+        double targetWh = tel.energyFullWh * (tel.chargeLimit / 100.0);
+        double remWh = std::max(0.0, targetWh - tel.energyNowWh);
+        if (remWh <= 0.2 || tel.capacity >= tel.chargeLimit) {
+            etaStr = QString(" • %1").arg(I18n::tr("eta_almost").arg(tel.chargeLimit));
+        } else if (tel.batWatts > 0.5) {
+            etaStr = QString(" • %1").arg(I18n::tr("eta_to_limit").arg(remWh / tel.batWatts, 0, 'f', 1).arg(tel.chargeLimit));
+        }
         lineIn = QString("🔌 Eingang Gesamt: %1 W  [%2]").arg(tel.totalInWatts, 5, 'f', 1).arg(srcLabel);
-        lineBat = QString("├── 🔋 Akku:     +%1 W  (%2 C • Lädt • %3%/%4%)").arg(tel.batWatts, 5, 'f', 1).arg(tel.cRate, 0, 'f', 2).arg(tel.capacity).arg(tel.chargeLimit);
+        lineBat = QString("├── 🔋 Akku:     +%1 W  (%2 C • Lädt • %3%/%4%%5)").arg(tel.batWatts, 5, 'f', 1).arg(tel.cRate, 0, 'f', 2).arg(tel.capacity).arg(tel.chargeLimit).arg(etaStr);
         lineSys = QString("└── 💻 System:    %1 W  (Laufender Betrieb)").arg(tel.sysWatts, 5, 'f', 1);
     } else if (tel.status == "Discharging") {
+        if (tel.batWatts > 0.5 && tel.energyNowWh > 0.0) {
+            etaStr = QString(" • %1").arg(I18n::tr("eta_rem").arg(tel.energyNowWh / tel.batWatts, 0, 'f', 1));
+        }
         lineIn = "🔌 Eingang Gesamt:   0.0 W  [Kein Netzteil]";
-        lineBat = QString("├── 🔋 Akku:     -%1 W  (%2 C • Entlädt • %3%)").arg(tel.batWatts, 5, 'f', 1).arg(tel.cRate, 0, 'f', 2).arg(tel.capacity);
+        lineBat = QString("├── 🔋 Akku:     -%1 W  (%2 C • Entlädt • %3%%4)").arg(tel.batWatts, 5, 'f', 1).arg(tel.cRate, 0, 'f', 2).arg(tel.capacity).arg(etaStr);
         lineSys = QString("└── 💻 System:    %1 W  (Aus dem Akku)").arg(tel.sysWatts, 5, 'f', 1);
     } else {
         lineIn = QString("🔌 Eingang Gesamt: %1 W  [%2]").arg(tel.totalInWatts, 5, 'f', 1).arg(srcLabel);
@@ -365,15 +399,24 @@ void TrayIcon::updateTray() {
     QString fanStatStr = (fans.cpuRpm == 0 && fans.gpuRpm == 0) ? I18n::tr("fan_status_off") : QString("CPU %1 | GPU %2 RPM").arg(fans.cpuRpm).arg(fans.gpuRpm);
     m_fanMenu->setTitle(I18n::tr("menu_fan").arg(fanStatStr));
 
-    if (m_fanActions.contains(Hardware::currentFanMode)) {
-        m_fanActions[Hardware::currentFanMode]->setChecked(true);
+    QString fMode = (Hardware::currentFanMode == "auto") ? "auto" : Hardware::detectFanMode();
+    if (m_fanActions.contains(fMode)) {
+        m_fanActions[fMode]->setChecked(true);
+    }
+
+    if (prof == "power-saver") {
+        m_actPs->setChecked(true);
+    } else if (prof == "balanced") {
+        m_actBal->setChecked(true);
+    } else if (prof == "performance") {
+        m_actPerf->setChecked(true);
     }
 
     m_actTotalIn->setText(lineIn);
     m_actBat->setText(lineBat);
     m_actSys->setText(lineSys);
     m_actSysDetail->setText(lineDetail);
-    m_actState->setText(QString("⚙️ Profil: %1 | %2 @ %3 Hz").arg(profDisp, panel.name).arg(panel.currentRate));
+    m_actState->setText(QString("⚡ Aktives Profil: %1 (%2 Hz)").arg(profDisp).arg(static_cast<int>(panel.currentRate)));
     m_actGpuStatus->setText(QString("🎮 GPU: %1").arg(tel.dgpuState == "suspended" ? I18n::tr("gpu_sleep") : I18n::tr("gpu_active")));
     m_actBatProt->setText(QString("🛡️ Akku-Schutz: Limit %1% (%2 C)").arg(tel.chargeLimit).arg(tel.cRate, 0, 'f', 2));
 
@@ -384,7 +427,7 @@ void TrayIcon::updateTray() {
      .arg(lineBat)
      .arg(lineSys)
      .arg(lineDetail)
-     .arg(I18n::tr("tt_fan").arg(fanStatStr, I18n::tr("fan_mode_" + Hardware::currentFanMode)))
+     .arg(I18n::tr("tt_fan").arg(fanStatStr, I18n::tr("fan_mode_" + fMode)))
      .arg(I18n::tr("tt_limit").arg(tel.chargeLimit).arg(tel.cRate, 0, 'f', 2))
      .arg(I18n::tr("tt_profile").arg(profDisp, QString::number(panel.currentRate) + " Hz"))
      .arg(I18n::tr("tt_gpu").arg(tel.dgpuState == "suspended" ? I18n::tr("gpu_sleep") : I18n::tr("gpu_active")));

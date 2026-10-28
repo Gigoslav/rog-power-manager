@@ -45,6 +45,7 @@ PanelInfo getPanelInfo();
 
 // Fan Control
 extern QString currentFanMode;
+QString detectFanMode();
 bool setFanMode(const QString &mode);
 
 // Display Brightness
