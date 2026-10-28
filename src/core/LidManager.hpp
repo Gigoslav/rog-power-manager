@@ -26,6 +26,8 @@ private:
 
     bool m_lastLidClosed = false;
     bool m_screenTurnedOffByLid = false;
+    bool m_kbdTurnedOffByLid = false;
+    int m_savedKbdBrightness = 1;
     QDBusUnixFileDescriptor m_inhibitorFd;
     QTimer *m_pollTimer = nullptr;
 };

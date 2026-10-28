@@ -291,6 +291,12 @@ void TrayIcon::createMenu() {
     });
 
     // Session
+    auto actScreenOff = m_menu->addAction(I18n::tr("menu_turn_off_all"));
+    connect(actScreenOff, &QAction::triggered, []() {
+        Hardware::setKbdBrightness(0);
+        QProcess::startDetached("kscreen-doctor", {"--dpms", "off"});
+    });
+
     auto actLock = m_menu->addAction(I18n::tr("menu_lock"));
     connect(actLock, &QAction::triggered, []() { QProcess::startDetached("loginctl", {"lock-session"}); });
 

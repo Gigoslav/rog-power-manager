@@ -98,15 +98,28 @@ void LidManager::handleLidChange(bool closed) {
             QProcess::startDetached("loginctl", {"suspend"});
         } else if (action == "hibernate") {
             QProcess::startDetached("loginctl", {"hibernate"});
+        } else if (action == "turn_off_all") {
+            m_screenTurnedOffByLid = true;
+            m_kbdTurnedOffByLid = true;
+            m_savedKbdBrightness = Hardware::getKbdBrightness();
+            Hardware::setKbdBrightness(0);
+            QProcess::startDetached("kscreen-doctor", {"--dpms", "off"});
         } else if (action == "turn_off_screen") {
             m_screenTurnedOffByLid = true;
             QProcess::startDetached("kscreen-doctor", {"--dpms", "off"});
-        } else if (action == "lock") {
+        } else if (action == "lock_and_turn_off_all") {
+            m_screenTurnedOffByLid = true;
+            m_kbdTurnedOffByLid = true;
+            m_savedKbdBrightness = Hardware::getKbdBrightness();
+            Hardware::setKbdBrightness(0);
             QProcess::startDetached("loginctl", {"lock-session"});
+            QProcess::startDetached("kscreen-doctor", {"--dpms", "off"});
         } else if (action == "lock_and_turn_off") {
             m_screenTurnedOffByLid = true;
             QProcess::startDetached("loginctl", {"lock-session"});
             QProcess::startDetached("kscreen-doctor", {"--dpms", "off"});
+        } else if (action == "lock") {
+            QProcess::startDetached("loginctl", {"lock-session"});
         } else if (action == "nothing") {
             // Do nothing
         }
@@ -122,6 +135,11 @@ void LidManager::handleLidChange(bool closed) {
         if (m_screenTurnedOffByLid) {
             m_screenTurnedOffByLid = false;
             QProcess::startDetached("kscreen-doctor", {"--dpms", "on"});
+        }
+        if (m_kbdTurnedOffByLid) {
+            m_kbdTurnedOffByLid = false;
+            int restoreVal = (m_savedKbdBrightness > 0) ? m_savedKbdBrightness : 1;
+            Hardware::setKbdBrightness(restoreVal);
         }
 
         QString cmdOpen = lidCfg.value("command_on_open").toString();

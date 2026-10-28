@@ -170,9 +170,11 @@ QWidget* SettingsDialog::createLidTab() {
 
     QList<QPair<QString, QString>> actions = {
         {"suspend", I18n::tr("lid_act_suspend")},
+        {"turn_off_all", I18n::tr("lid_act_turn_off_all")},
         {"turn_off_screen", I18n::tr("lid_act_turn_off_screen")},
-        {"lock", I18n::tr("lid_act_lock")},
+        {"lock_and_turn_off_all", I18n::tr("lid_act_lock_and_turn_off_all")},
         {"lock_and_turn_off", I18n::tr("lid_act_lock_and_turn_off")},
+        {"lock", I18n::tr("lid_act_lock")},
         {"hibernate", I18n::tr("lid_act_hibernate")},
         {"nothing", I18n::tr("lid_act_nothing")}
     };
