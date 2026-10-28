@@ -1,20 +1,32 @@
 # Changelog
 
-All notable changes to **`rog-auto-power`** are documented in this file.
+All notable changes to **`rog-power-manager`** are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [0.3.0] - 2026-10-28
 ### Added
+- **Project Renamed to `rog-power-manager`:**
+  - Standardized all binaries, services, desktop files, rules, and configuration directories to `rog-power-manager` (`rog-power-manager.py`, `rog-power-manager.service`, `~/.config/rog-power-manager/`).
+  - Seamless migration of existing configuration and backwards compatibility symlinks (`rog-auto-power`, `auto-power-profile.py`).
+- **ASUS Fan Control Engine (`Silent`, `Balanced`, `Turbo`, `Max`):**
+  - Integrated fan control for ASUS ROG laptops via `asus-nb-wmi` (`throttle_thermal_policy` & `asus_custom_fan_curve`).
+  - **Silent Mode:** Passive fanless cooling (`0 RPM`) up to ~55-60 °C, whisper quiet under light load.
+  - **Balanced Mode:** Standard factory cooling curve.
+  - **Turbo Mode:** Aggressive fan profile for peak sustained performance.
+  - **Max Fan Mode:** Ramps CPU and GPU fans to 100% PWM (~5500 RPM) for rapid cooling and dust purge.
+  - **Auto Sync:** Automatically selects optimal fan mode based on power state (`battery` -> silent, `usbc` -> balanced, `ac` -> turbo) with configurable defaults.
+  - **Live RPM Telemetry:** Real-time RPM reading for CPU and GPU fans in tray menu, tooltip, About dialog, and CLI.
+  - **CLI Switch:** Added `--fan auto|silent|balanced|turbo|max` for scripting and instant terminal switching.
 - **Interactive GUI Settings & Automations (`SettingsDialog`):**
   - Graphical settings dialog accessible directly from the tray menu (`⚙️ Einstellungen & Automationen...` / `⚙️ Settings & Automations...`).
-  - **Profiles & Hardware Tab:** Live configuration of power profile (`power-saver`, `balanced`, `performance`), refresh rate (`60Hz` / `240Hz`), screen brightness (`10-100%`), and keyboard lighting (`0-3`) per power source (`battery`, `usbc`, `ac`).
+  - **Profiles & Hardware Tab:** Live configuration of power profile, fan mode, refresh rate (`60Hz` / `240Hz`), screen brightness (`10-100%`), and keyboard lighting (`0-3`) per power source (`battery`, `usbc`, `ac`).
   - **Inactivity & Display Tab:** Customizable timeouts for display dimming, DPMS screen-off, and auto-suspend per power source.
   - **Automations & Hooks Tab:** Custom shell commands triggered on power source transition, custom battery alert thresholds, and direct access to the hooks directory.
 - **Config & Extensibility Engine:**
-  - Configuration saved to `~/.config/rog-auto-power/config.json` with sensible defaults and persistent user overrides.
-  - User hooks directory `~/.config/rog-auto-power/hooks.d/` executing arbitrary executable scripts for `on_state_change`, `battery_low`, and `battery_critical`.
+  - Configuration saved to `~/.config/rog-power-manager/config.json` with sensible defaults and persistent user overrides.
+  - User hooks directory `~/.config/rog-power-manager/hooks.d/` executing arbitrary executable scripts for `on_state_change`, `battery_low`, and `battery_critical`.
 - **Modern GUI About Window (`AboutDialog`):**
-  - Replaced simple web popup with a dedicated dark-themed dialog displaying developer information, organization branding, links, and live system telemetry (power source, active profile, refresh rate, battery level/limit, RTX 3060 D3cold sleep state).
+  - Replaced simple web popup with a dedicated dark-themed dialog displaying developer information, organization branding, links, and live system telemetry (power source, active profile, fan status, refresh rate, battery level/limit, RTX 3060 D3cold sleep state).
 - **Brand Update:**
   - Updated author organization and website to **Mountainhouse Software Solutions** (`https://mountain-house.dev`).
 

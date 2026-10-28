@@ -1,0 +1,15 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=ROG Power Manager & Fan Control
+Name[de]=ROG Power Manager & Lüftersteuerung
+GenericName=ASUS ROG Power, Fan & GPU Manager
+GenericName[de]=ASUS ROG Energie-, Lüfter- & GPU-Manager
+Comment=Auto power profiles, fan curves, 60/240Hz refresh rate switcher, live Wattage tray badge & GPU/MUX switcher
+Comment[de]=Automatische Energieprofile, Lüftersteuerung, 60/240Hz Umschalter, Live-Watt-Tray-Anzeige & GPU/MUX-Umschalter
+Exec=rog-power-manager
+Icon=battery-good-charging
+Terminal=false
+Categories=System;HardwareSettings;Monitor;Qt;KDE;
+Keywords=ASUS;ROG;Power;Battery;Watt;Fan;Lüfter;MUX;GPU;supergfxctl;
+StartupNotify=false

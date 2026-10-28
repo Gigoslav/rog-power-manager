@@ -1,12 +1,12 @@
 # Maintainer: Marcel Berghaus (Gigoslav) <berghaus.marcel@gmail.com>
 # SPDX-License-Identifier: GPL-3.0-or-later
 
-pkgname=rog-auto-power-git
+pkgname=rog-power-manager
 pkgver=0.3.0
 pkgrel=1
-pkgdesc="ASUS ROG Strix 3-state auto power profile, 60/240Hz switcher, live Wattage (IN/Battery/System) KDE tray badge & GPU/MUX switcher"
+pkgdesc="ASUS ROG Strix auto power manager, fan control (silent/balanced/turbo/max), 60/240Hz switcher, live Wattage tray badge & GPU/MUX switcher"
 arch=('any')
-url="https://github.com/Gigoslav/rog-auto-power"
+url="https://github.com/Gigoslav/rog-power-manager"
 license=('GPL-3.0-or-later')
 depends=('python' 'python-pyqt6' 'python-dbus' 'power-profiles-daemon' 'libnotify')
 optdepends=(
@@ -15,13 +15,11 @@ optdepends=(
   'xorg-xrandr: X11 fallback refresh rate switching'
   'iw: Wi-Fi power-save toggling on battery'
 )
-makedepends=('git')
-provides=('rog-auto-power')
+provides=('rog-power-manager' 'rog-auto-power' 'rog-auto-power-git')
 conflicts=('rog-auto-power')
-source=("git+${url}.git")
-sha256sums=('SKIP')
+replaces=('rog-auto-power' 'rog-auto-power-git')
 
 package() {
-  cd "$srcdir/rog-auto-power"
+  cd "$startdir"
   make DESTDIR="$pkgdir" PREFIX=/usr install
 }

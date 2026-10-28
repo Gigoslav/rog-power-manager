@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-# ROG Auto-Power: Unprivileged sysfs access for display, keyboard, battery and ASUS hardware controls
+# ROG Power Manager: Unprivileged sysfs access for display, keyboard, battery, fan control and ASUS hardware controls
 
 # Display Backlight
 ACTION=="add", SUBSYSTEM=="backlight", RUN+="/bin/chmod 0666 /sys/class/backlight/%k/brightness"
@@ -10,8 +10,11 @@ ACTION=="add", SUBSYSTEM=="leds", KERNEL=="*kbd_backlight*", RUN+="/bin/chmod 06
 # ASUS Battery Charge Limit / Bypass
 ACTION=="add", SUBSYSTEM=="power_supply", ATTR{charge_control_end_threshold}!="", RUN+="/bin/chmod 0666 /sys/class/power_supply/%k/charge_control_end_threshold"
 
-# ASUS WMI Controls (Panel Overdrive & GPU Mux)
-ACTION=="add", SUBSYSTEM=="platform", DRIVERS=="asus-nb-wmi", RUN+="/bin/sh -c 'chmod 0666 /sys/devices/platform/asus-nb-wmi/panel_od /sys/devices/platform/asus-nb-wmi/gpu_mux_mode 2>/dev/null || true'"
+# ASUS WMI Controls (Panel Overdrive, GPU Mux, Fan Policies & Custom Fan Curves)
+ACTION=="add", SUBSYSTEM=="platform", DRIVERS=="asus-nb-wmi", RUN+="/bin/sh -c 'chmod 0666 /sys/devices/platform/asus-nb-wmi/panel_od /sys/devices/platform/asus-nb-wmi/gpu_mux_mode /sys/devices/platform/asus-nb-wmi/throttle_thermal_policy /sys/devices/platform/asus-nb-wmi/hwmon/hwmon*/* 2>/dev/null || true'"
+
+# ACPI Platform Profile
+ACTION=="add", SUBSYSTEM=="acpi", RUN+="/bin/chmod 0666 /sys/firmware/acpi/platform_profile"
 
 # CPU Frequency Boost
 ACTION=="add", SUBSYSTEM=="cpu", RUN+="/bin/chmod 0666 /sys/devices/system/cpu/cpufreq/boost"

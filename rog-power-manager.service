@@ -1,0 +1,18 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 Marcel Berghaus (Gigoslav) <berghaus.marcel@gmail.com>
+
+[Unit]
+Description=ASUS ROG Power Manager, Fan Control, Refresh Rate Switcher & Live Wattage Tray Indicator
+Documentation=https://github.com/Gigoslav/rog-power-manager
+PartOf=graphical-session.target
+After=graphical-session.target plasma-kscreen.service
+
+[Service]
+Type=simple
+ExecStart=%h/.local/bin/rog-power-manager
+Restart=always
+RestartSec=5
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=graphical-session.target
