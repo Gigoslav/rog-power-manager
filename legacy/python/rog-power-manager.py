@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: GPL-3.0-or-later
 # Copyright (C) 2026 Marcel Berghaus (Gigoslav) <berghaus.marcel@gmail.com>
-# Website: https://lexchaos.de
-# Project: https://github.com/Gigoslav/rog-auto-power
+# Website: https://mountain-house.dev
+# Project: https://github.com/Gigoslav/rog-power-manager
 """
-ROG Auto-Power & Live Wattage Tray Indicator (rog-auto-power)
+ROG Power Manager & Live Wattage Tray Indicator (rog-power-manager)
 - AC (Barrel Plug):    Performance profile + 240 Hz
 - USB-C PD Charger:    Balanced profile    + 60 Hz
 - Battery (Unplugged): Power-saver profile + 60 Hz
