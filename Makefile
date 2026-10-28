@@ -34,5 +34,18 @@ install: build
 	install -Dm644 README.md "$(DESTDIR)$(PREFIX)/share/doc/$(pkgname)/README.md"
 	install -Dm644 README.de.md "$(DESTDIR)$(PREFIX)/share/doc/$(pkgname)/README.de.md"
 
+uninstall:
+	rm -f "$(DESTDIR)$(BINDIR)/rog-power-manager"
+	rm -f "$(DESTDIR)$(BINDIR)/rog-auto-power"
+	rm -f "$(DESTDIR)$(BINDIR)/auto-power-profile.py"
+	rm -f "$(DESTDIR)$(BINDIR)/rog-power-helper"
+	rm -f "$(DESTDIR)$(BINDIR)/rog-gpu-mux-helper"
+	rm -f "$(DESTDIR)$(PREFIX)/lib/udev/rules.d/99-rog-power-manager.rules"
+	rm -f "$(DESTDIR)$(PREFIX)/lib/tmpfiles.d/rog-power-manager.conf"
+	rm -f "$(DESTDIR)$(PREFIX)/lib/systemd/user/rog-power-manager.service"
+	rm -f "$(DESTDIR)$(PREFIX)/share/applications/rog-power-manager.desktop"
+	rm -rf "$(DESTDIR)$(PREFIX)/share/licenses/$(pkgname)"
+	rm -rf "$(DESTDIR)$(PREFIX)/share/doc/$(pkgname)"
+
 clean:
-	rm -rf $(BUILD_DIR)
+	rm -rf $(BUILD_DIR) pkg *.pkg.tar.* __pycache__

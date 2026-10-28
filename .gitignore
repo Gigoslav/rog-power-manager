@@ -5,3 +5,5 @@ pkg/
 build/
 *.pkg.tar.*
 *.service.pkg
+.cache/
+compile_commands.json
