@@ -3,7 +3,7 @@
 🇬🇧 **English** | 🇩🇪 **[Deutsch](README.de.md)**
 
 [![License: GPL v3+](https://img.shields.io/badge/License-GPLv3%2B-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
-[![Version](https://img.shields.io/badge/Version-0.3.1-brightgreen.svg)](https://github.com/Gigoslav/rog-power-manager/releases)
+[![Version](https://img.shields.io/badge/Version-0.4.0-brightgreen.svg)](https://github.com/Gigoslav/rog-power-manager/releases)
 [![Platform](https://img.shields.io/badge/Platform-Linux%20%7C%20Arch%20%7C%20KDE%20Plasma%206-informational.svg)](https://github.com/Gigoslav/rog-power-manager)
 
 Intelligent 3-state power management, **ASUS fan control (`Silent`, `Balanced`, `Turbo`, `Max`)**, automatic refresh rate switching (`60 Hz` ↔ `240 Hz`), **live KDE system tray Wattage monitor (`Total IN = Battery + System`)**, **battery protection mode with live C-rate calculation**, and **GPU/Hardware MUX switch** (`supergfxctl` + `asus-nb-wmi`) tailored for **ASUS ROG Strix (G17 G713RM)** laptops running Linux & KDE Plasma 6 (Wayland & X11).
