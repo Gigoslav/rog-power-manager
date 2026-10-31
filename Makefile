@@ -3,7 +3,7 @@
 # Standard Linux/FHS Makefile for rog-power-manager (Native C++ / Qt6)
 
 pkgname := rog-power-manager
-VERSION := 0.4.2
+VERSION := 0.4.3
 
 PREFIX ?= /usr
 BINDIR ?= $(PREFIX)/bin

@@ -438,6 +438,35 @@ bool setBatteryLimit(int limit) {
     return ok;
 }
 
+double getApuWatts() {
+    static QString amdgpuHwmonPath;
+    if (!amdgpuHwmonPath.isEmpty() && QFile::exists(amdgpuHwmonPath + "/power1_input")) {
+        bool ok = false;
+        double val = readSysfs(amdgpuHwmonPath + "/power1_input").trimmed().toDouble(&ok);
+        if (ok && val > 0.0) {
+            return val / 1000000.0;
+        }
+    }
+
+    QDir baseDir("/sys/class/hwmon");
+    for (const QString &hwEntry : baseDir.entryList(QDir::Dirs | QDir::NoDotAndDotDot)) {
+        QString namePath = QString("/sys/class/hwmon/%1/name").arg(hwEntry);
+        if (readSysfs(namePath).trimmed() == "amdgpu") {
+            amdgpuHwmonPath = QString("/sys/class/hwmon/%1").arg(hwEntry);
+            QString pPath = amdgpuHwmonPath + "/power1_input";
+            if (QFile::exists(pPath)) {
+                bool ok = false;
+                double val = readSysfs(pPath).trimmed().toDouble(&ok);
+                if (ok && val > 0.0) {
+                    return val / 1000000.0;
+                }
+            }
+            break;
+        }
+    }
+    return 0.0;
+}
+
 PowerTelemetry getPowerTelemetry(double refreshRate) {
     PowerTelemetry t;
     t.status = readSysfs("/sys/class/power_supply/BAT0/status");
@@ -467,20 +496,37 @@ PowerTelemetry getPowerTelemetry(double refreshRate) {
     t.dgpuState = (dgpuPm == "suspended") ? "suspended" : "active";
     t.dgpuWatts = (t.dgpuState == "active") ? 10.0 : 0.0;
 
-    t.apuWatts = (refreshRate >= 120.0) ? 9.5 : 5.0;
-    t.restWatts = (refreshRate >= 120.0) ? 10.0 : 7.0;
+    // Live APU Package Power (CPU + iGPU)
+    t.apuWatts = getApuWatts();
+    if (t.apuWatts <= 0.0) {
+        t.apuWatts = (refreshRate >= 120.0) ? 9.5 : 5.0;
+    }
+
+    // Dynamic Display & Hardware Overhead
+    int rawBr = getRawBrightness();
+    int maxBr = getMaxBrightness();
+    double blRatio = (maxBr > 0) ? std::clamp(rawBr / static_cast<double>(maxBr), 0.0, 1.0) : 0.5;
+    double hzExtra = (refreshRate > 100.0) ? 2.2 : 0.0;
+    double estimatedRest = 3.2 + (3.8 * blRatio) + hzExtra;
 
     QString src = getPowerSource();
-    if (src == "battery") {
+    if (t.status == "Discharging") {
+        t.sysWatts = (t.batWatts > 0.5) ? t.batWatts : (t.apuWatts + t.dgpuWatts + estimatedRest);
+        t.restWatts = std::max(0.5, t.sysWatts - t.apuWatts - t.dgpuWatts);
         t.totalInWatts = 0.0;
-        t.sysWatts = (t.status == "Discharging") ? t.batWatts : (t.apuWatts + t.dgpuWatts + t.restWatts);
-    } else if (src == "usbc") {
-        t.totalInWatts = (t.status == "Charging") ? (t.batWatts + 15.0) : 15.0;
-        t.sysWatts = std::max(5.0, t.totalInWatts - ((t.status == "Charging") ? t.batWatts : 0.0));
+    } else if (t.status == "Charging") {
+        t.restWatts = estimatedRest;
+        t.sysWatts = t.apuWatts + t.dgpuWatts + t.restWatts;
+        t.totalInWatts = t.batWatts + t.sysWatts;
+    } else { // Not charging / Full / Bypass
+        t.restWatts = estimatedRest;
+        t.sysWatts = t.apuWatts + t.dgpuWatts + t.restWatts;
+        t.batWatts = 0.0;
+        t.totalInWatts = t.sysWatts;
+    }
+
+    if (src == "usbc") {
         t.usbcMaxWatts = 100.0;
-    } else {
-        t.totalInWatts = (t.status == "Charging") ? (t.batWatts + 25.0) : 25.0;
-        t.sysWatts = std::max(10.0, t.totalInWatts - ((t.status == "Charging") ? t.batWatts : 0.0));
     }
 
     return t;

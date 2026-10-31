@@ -42,6 +42,7 @@ QString getPowerSource();
 PowerTelemetry getPowerTelemetry(double refreshRate = 60.0);
 FanTelemetry getFanTelemetry();
 PanelInfo getPanelInfo();
+double getApuWatts();
 
 // Fan Control
 extern QString currentFanMode;

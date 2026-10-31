@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.20)
-project(rog-power-manager VERSION 0.4.2 LANGUAGES CXX)
+project(rog-power-manager VERSION 0.4.3 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -39,6 +39,10 @@ target_link_libraries(rog-power-manager PRIVATE
     Qt6::Gui
     Qt6::Widgets
     Qt6::DBus
+)
+
+target_compile_definitions(rog-power-manager PRIVATE
+    APP_VERSION="${PROJECT_VERSION}"
 )
 
 target_include_directories(rog-power-manager PRIVATE

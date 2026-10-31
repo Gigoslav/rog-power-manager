@@ -45,7 +45,11 @@ int main(int argc, char *argv[]) {
     // Create QApplication early for event loop & QCommandLineParser
     QApplication app(argc, argv);
     app.setApplicationName("rog-power-manager");
-    app.setApplicationVersion("0.4.2");
+#ifdef APP_VERSION
+    app.setApplicationVersion(APP_VERSION);
+#else
+    app.setApplicationVersion("0.4.3");
+#endif
     app.setOrganizationName("Mountainhouse Software Solutions");
     app.setOrganizationDomain("mountain-house.dev");
     app.setQuitOnLastWindowClosed(false);

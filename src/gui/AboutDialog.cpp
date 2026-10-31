@@ -33,7 +33,10 @@ void AboutDialog::setupUi() {
     layout->setContentsMargins(20, 20, 20, 20);
     layout->setSpacing(14);
 
-    auto header = new QLabel(I18n::tr("about_title").arg("0.4.0 (C++ Native)"), this);
+#ifndef APP_VERSION
+#define APP_VERSION "0.4.3"
+#endif
+    auto header = new QLabel(I18n::tr("about_title").arg(QString(APP_VERSION) + " (C++ Native)"), this);
     header->setProperty("isHeader", true);
     layout->addWidget(header);
 
