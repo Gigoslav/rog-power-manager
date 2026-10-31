@@ -77,6 +77,7 @@ bool hasExternalMonitor();
 void applyHardwareTunings(const QString &state, const QString &profile = "");
 
 // Battery Care Limit
+int getBatteryLimit();
 bool setBatteryLimit(int limit);
 
 // Notifications & KDE OSD

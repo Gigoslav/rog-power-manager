@@ -90,7 +90,7 @@ case "$1" in
         ;;
     esac
     ;;
-  charge-limit)
+  charge-limit|battery-limit)
     val="$2"
     if [[ "$val" =~ ^[0-9]+$ ]] && [ "$val" -ge 20 ] && [ "$val" -le 100 ]; then
       echo "$val" > /sys/class/power_supply/BAT0/charge_control_end_threshold

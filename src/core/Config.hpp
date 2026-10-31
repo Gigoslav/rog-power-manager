@@ -14,6 +14,9 @@ public:
     QJsonObject getData() const { return m_data; }
     void setData(const QJsonObject &data);
 
+    int getChargeLimit() const;
+    void setChargeLimit(int limit);
+
     void runCommand(const QString &cmd, const QMap<QString, QString> &customEnv = {});
     void runHook(const QString &hookName, const QStringList &args = {});
 

@@ -25,6 +25,7 @@ int main(int argc, char *argv[]) {
     QCommandLineOption optProfile("profile", "Set power profile (power-saver, balanced, performance)", "profile");
     QCommandLineOption optBrightness("brightness", "Set screen brightness percentage (1-100)", "pct");
     QCommandLineOption optKbd("kbd", "Set keyboard backlight level (0-3)", "level");
+    QCommandLineOption optChargeLimit("charge-limit", "Set battery charge limit percentage (20-100)", "pct");
     QCommandLineOption optLang("lang", "Override display language (de/en)", "lang");
 
     parser.addOption(optOnce);
@@ -33,12 +34,13 @@ int main(int argc, char *argv[]) {
     parser.addOption(optProfile);
     parser.addOption(optBrightness);
     parser.addOption(optKbd);
+    parser.addOption(optChargeLimit);
     parser.addOption(optLang);
 
     // Create QApplication early for event loop & QCommandLineParser
     QApplication app(argc, argv);
     app.setApplicationName("rog-power-manager");
-    app.setApplicationVersion("0.4.0");
+    app.setApplicationVersion("0.4.1");
     app.setOrganizationName("Mountainhouse Software Solutions");
     app.setOrganizationDomain("mountain-house.dev");
     app.setQuitOnLastWindowClosed(false);
@@ -77,6 +79,14 @@ int main(int argc, char *argv[]) {
         Hardware::setKbdBrightness(val);
         Hardware::showKdeOsdKbd(val);
         std::cout << "[Keyboard] Keyboard backlight set to level: " << val << std::endl;
+        return 0;
+    }
+
+    if (parser.isSet(optChargeLimit)) {
+        int val = std::clamp(parser.value(optChargeLimit).toInt(), 20, 100);
+        Hardware::setBatteryLimit(val);
+        ConfigManager::instance().setChargeLimit(val);
+        std::cout << "[Battery] Battery charge limit set and saved to: " << val << "%" << std::endl;
         return 0;
     }
 

@@ -189,31 +189,44 @@ void TrayIcon::createMenu() {
     m_actBatProt->setEnabled(false);
 
     auto batMenu = m_menu->addMenu("🛡️ Akku-Schutz Limit");
-    auto actLimStop = batMenu->addAction(I18n::tr("menu_lim_stop"));
-    connect(actLimStop, &QAction::triggered, [this]() {
+    m_batLimitGroup = new QActionGroup(batMenu);
+    m_batLimitGroup->setExclusive(true);
+
+    m_actLimStop = batMenu->addAction(I18n::tr("menu_lim_stop"));
+    connect(m_actLimStop, &QAction::triggered, [this]() {
         auto tel = Hardware::getPowerTelemetry();
         Hardware::setBatteryLimit(tel.capacity);
+        ConfigManager::instance().setChargeLimit(tel.capacity);
         Hardware::sendNotification(I18n::tr("bat_prot_title"), I18n::tr("stop_now_msg").arg(tel.capacity));
         updateTray();
     });
 
-    auto actLim60 = batMenu->addAction(I18n::tr("menu_lim_60"));
-    connect(actLim60, &QAction::triggered, [this]() {
+    m_actLim60 = batMenu->addAction(I18n::tr("menu_lim_60"));
+    m_actLim60->setCheckable(true);
+    m_batLimitGroup->addAction(m_actLim60);
+    connect(m_actLim60, &QAction::triggered, [this]() {
         Hardware::setBatteryLimit(60);
+        ConfigManager::instance().setChargeLimit(60);
         Hardware::sendNotification(I18n::tr("bat_prot_title"), I18n::tr("bat_prot_msg").arg(I18n::tr("lbl_lim_60")).arg(60));
         updateTray();
     });
 
-    auto actLim80 = batMenu->addAction(I18n::tr("menu_lim_80"));
-    connect(actLim80, &QAction::triggered, [this]() {
+    m_actLim80 = batMenu->addAction(I18n::tr("menu_lim_80"));
+    m_actLim80->setCheckable(true);
+    m_batLimitGroup->addAction(m_actLim80);
+    connect(m_actLim80, &QAction::triggered, [this]() {
         Hardware::setBatteryLimit(80);
+        ConfigManager::instance().setChargeLimit(80);
         Hardware::sendNotification(I18n::tr("bat_prot_title"), I18n::tr("bat_prot_msg").arg(I18n::tr("lbl_lim_80")).arg(80));
         updateTray();
     });
 
-    auto actLim100 = batMenu->addAction(I18n::tr("menu_lim_100"));
-    connect(actLim100, &QAction::triggered, [this]() {
+    m_actLim100 = batMenu->addAction(I18n::tr("menu_lim_100"));
+    m_actLim100->setCheckable(true);
+    m_batLimitGroup->addAction(m_actLim100);
+    connect(m_actLim100, &QAction::triggered, [this]() {
         Hardware::setBatteryLimit(100);
+        ConfigManager::instance().setChargeLimit(100);
         Hardware::sendNotification(I18n::tr("bat_prot_title"), I18n::tr("bat_prot_msg").arg(I18n::tr("lbl_lim_100")).arg(100));
         updateTray();
     });
@@ -419,6 +432,9 @@ void TrayIcon::updateTray() {
     m_actState->setText(QString("⚡ Aktives Profil: %1 (%2 Hz)").arg(profDisp).arg(static_cast<int>(panel.currentRate)));
     m_actGpuStatus->setText(QString("🎮 GPU: %1").arg(tel.dgpuState == "suspended" ? I18n::tr("gpu_sleep") : I18n::tr("gpu_active")));
     m_actBatProt->setText(QString("🛡️ Akku-Schutz: Limit %1% (%2 C)").arg(tel.chargeLimit).arg(tel.cRate, 0, 'f', 2));
+    if (m_actLim60) m_actLim60->setChecked(tel.chargeLimit == 60);
+    if (m_actLim80) m_actLim80->setChecked(tel.chargeLimit == 80);
+    if (m_actLim100) m_actLim100->setChecked(tel.chargeLimit == 100);
 
     QString tooltip = QString(
         "%1\n%2\n%3\n%4\n%5\n──────────────────────────\n%6\n%7\n%8\n%9"

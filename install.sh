@@ -12,6 +12,13 @@ echo "=== Building & Installing ROG Power Manager (Native C++ / Qt6) ==="
 cd "$REPO_DIR"
 make build
 sudo make install
+install -Dm755 build/rog-power-manager ~/.local/bin/rog-power-manager
+
+# Clean up conflicting legacy battery-charge-threshold.conf if present
+if [ -f /etc/tmpfiles.d/battery-charge-threshold.conf ]; then
+    echo "=== Removing conflicting legacy /etc/tmpfiles.d/battery-charge-threshold.conf ==="
+    sudo rm -f /etc/tmpfiles.d/battery-charge-threshold.conf 2>/dev/null || true
+fi
 
 # Clean up legacy auto-power-profile user service if present
 if systemctl --user is-active --quiet auto-power-profile.service 2>/dev/null; then
@@ -30,6 +37,7 @@ echo "=== Replacing KDE PowerDevil (stopping & masking plasma-powerdevil.service
 systemctl --user stop plasma-powerdevil.service 2>/dev/null || true
 systemctl --user mask plasma-powerdevil.service 2>/dev/null || true
 
+chmod 644 ~/.config/systemd/user/rog-power-manager.service 2>/dev/null || true
 systemctl --user daemon-reload
 systemctl --user enable --now rog-power-manager.service
 systemctl --user restart rog-power-manager.service

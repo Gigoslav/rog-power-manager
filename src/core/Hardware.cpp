@@ -28,7 +28,13 @@ static QString readSysfs(const QString &path) {
     return "";
 }
 
-static bool writeSysfs(const QString &path, const QString &val) {
+static QString findHelper(const QString &name) {
+    if (QFile::exists("/usr/local/bin/" + name)) return "/usr/local/bin/" + name;
+    if (QFile::exists("/usr/bin/" + name)) return "/usr/bin/" + name;
+    return "/usr/local/bin/" + name;
+}
+
+bool writeSysfs(const QString &path, const QString &val) {
     QFile f(path);
     if (f.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
         f.write((val + "\n").toUtf8());
@@ -259,8 +265,9 @@ bool setFanMode(const QString &mode) {
         written = true;
     }
 
-    if (!written && QFile::exists("/usr/local/bin/rog-power-helper")) {
-        QProcess::execute("sudo", {"-n", "/usr/local/bin/rog-power-helper", "fan-mode", mode});
+    QString pHelper = findHelper("rog-power-helper");
+    if (!written && QFile::exists(pHelper)) {
+        QProcess::execute("sudo", {"-n", pHelper, "fan-mode", mode});
         written = true;
     }
 
@@ -312,8 +319,9 @@ bool setPowerProfile(const QString &profile) {
         }
     }
 
-    if (!success && QFile::exists("/usr/local/bin/rog-power-helper")) {
-        if (QProcess::execute("sudo", {"-n", "/usr/local/bin/rog-power-helper", "set-profile", profile}) == 0) {
+    QString pHelper = findHelper("rog-power-helper");
+    if (!success && QFile::exists(pHelper)) {
+        if (QProcess::execute("sudo", {"-n", pHelper, "set-profile", profile}) == 0) {
             success = true;
         }
     }
@@ -402,16 +410,30 @@ void applyHardwareTunings(const QString &state, const QString &profile) {
     }
 
     // 4. Background tunables
-    if (QFile::exists("/usr/local/bin/rog-gpu-mux-helper")) {
-        QProcess::startDetached("sudo", {"-n", "/usr/local/bin/rog-gpu-mux-helper", "power-" + state});
+    QString gHelper = findHelper("rog-gpu-mux-helper");
+    if (QFile::exists(gHelper)) {
+        QProcess::startDetached("sudo", {"-n", gHelper, "power-" + state});
     }
+}
+
+int getBatteryLimit() {
+    int val = readSysfs("/sys/class/power_supply/BAT0/charge_control_end_threshold").toInt();
+    return (val >= 20 && val <= 100) ? val : 80;
 }
 
 bool setBatteryLimit(int limit) {
     int clamped = std::clamp(limit, 20, 100);
+    int current = readSysfs("/sys/class/power_supply/BAT0/charge_control_end_threshold").toInt();
+    if (current == clamped) {
+        return true;
+    }
     bool ok = writeSysfs("/sys/class/power_supply/BAT0/charge_control_end_threshold", QString::number(clamped));
-    if (!ok && QFile::exists("/usr/local/bin/rog-power-helper")) {
-        ok = (QProcess::execute("sudo", {"-n", "/usr/local/bin/rog-power-helper", "battery-limit", QString::number(clamped)}) == 0);
+    if (!ok) {
+        QString helper = findHelper("rog-power-helper");
+        if (!QFile::exists(helper)) helper = findHelper("rog-gpu-mux-helper");
+        if (QFile::exists(helper)) {
+            ok = (QProcess::execute("sudo", {"-n", helper, "charge-limit", QString::number(clamped)}) == 0);
+        }
     }
     return ok;
 }

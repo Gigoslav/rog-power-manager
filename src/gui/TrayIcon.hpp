@@ -38,6 +38,11 @@ private:
 
     QAction *m_actGpuStatus;
     QAction *m_actBatProt;
+    QAction *m_actLimStop;
+    QAction *m_actLim60;
+    QAction *m_actLim80;
+    QAction *m_actLim100;
+    QActionGroup *m_batLimitGroup;
     QAction *m_actInhibit;
 
     QMenu *m_fanMenu;

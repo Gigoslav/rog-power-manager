@@ -3,6 +3,30 @@
 All notable changes to **`rog-power-manager`** are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.1] - 2026-10-31
+### Added
+- **Persistent Battery Charge Limit across Reboots & State Changes:**
+  - Saves the active battery charge limit (`charge_limit`: 60%, 80%, 100%, or custom/bypass) persistently in `~/.config/rog-power-manager/config.json`.
+  - Automatically restores the user's configured charge limit on daemon/app startup and upon power source switches (`applyState`), protecting against hardware EC resets.
+  - Added CLI flag `--charge-limit <pct>` to view/set and persist the threshold directly from the terminal.
+  - Added "Akku-Ladelimit (Hardware-Schutz)" combobox in the GUI Settings dialog (`SettingsDialog`).
+  - Added checkmark states in the Tray Icon context menu for immediate visual feedback on the active limit.
+  - Added cleanup of legacy `/etc/tmpfiles.d/battery-charge-threshold.conf` in `install.sh`.
+- **Turn off Display & Keyboard Backlight (`turn_off_all` / `lock_and_turn_off_all`):**
+  - Dedicated lid close actions that power off the display via DPMS and set keyboard backlight to 0.
+- **Maximum Power-Save While Closed (`enable_max_powersave_while_closed`):**
+  - Temporarily forces 60 Hz display refresh rate, CPU governor `power-saver`, and fan mode `silent` (0 RPM passiv) while closed.
+  - Automatically restores previous display refresh rate, brightness, keyboard backlight level, and fan profile upon reopening the lid.
+- **Comprehensive Laptop Lid Close Management & Settings:**
+  - Added dedicated `LidManager` inhibiting systemd-logind's default `handle-lid-switch` via D-Bus (`Inhibit("handle-lid-switch")`) to give users 100% control over lid switch behaviors.
+  - Reactive lid state changes via UPower D-Bus (`LidIsClosed`) and immediate `/proc/acpi/button/lid/LID0/state` procfs fallback.
+  - Configurable actions per power source (`battery`, `usbc`, `ac`): `suspend`, `turn_off_all`, `turn_off_screen`, `max_powersave`, `lock_max_powersave`, `lock`, `lock_and_turn_off`, `lock_and_turn_off_all`, `hibernate`, `nothing`.
+  - **Clamshell Mode:** Automatically detects external monitors on non-eDP ports (`/sys/class/drm/*/status`) and keeps laptop running when lid is closed.
+  - **Lid Automations & Hooks:** Dedicated GUI settings tab `💻 Zuklappen (Lid)`, custom shell commands, and execution of `~/.config/rog-power-manager/hooks.d/on_lid_close` and `on_lid_open`.
+
+### Changed
+- **Tray Context Menu Clean-up:** Removed duplicate screen/keyboard action from tray context menu to keep the menu sleek; lid switch and power saving behaviors are managed centrally in the settings dialog.
+
 ## [0.4.0] - 2026-10-28
 ### Added
 - **Complete Native C++ / Qt6 Port:**
@@ -31,18 +55,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   - Discharging: Calculates remaining runtime (`~X.Xh remaining`) based on available capacity and real-time power draw.
   - Charging: Calculates estimated time to reach configured battery health limit (`~X.Xh to 80%`).
   - Displayed across tray menu, rich tooltip, and CLI (`--status`).
-- **Comprehensive Laptop Lid Close Management & Settings:**
-  - Added dedicated `LidManager` inhibiting systemd-logind's default `handle-lid-switch` via D-Bus to prevent unwanted OS suspends.
-  - Reactive lid state changes via UPower D-Bus (`LidIsClosed`) and immediate `/proc/acpi/button/lid/LID0/state` procfs fallback.
-  - Configurable actions per power source (`battery`, `usbc`, `ac`):
-    - `suspend` (Standby / Sleep)
-    - `turn_off_screen` (Turns off display via DPMS / turns on when opened)
-    - `lock` (Locks session via `loginctl lock-session`)
-    - `lock_and_turn_off` (Locks session and powers off screen)
-    - `hibernate` (Hibernates system)
-    - `nothing` (Keeps system running)
-  - **Clamshell Mode:** Automatically keeps the laptop awake when an external monitor (HDMI / USB-C DP) is connected.
-  - **Lid Automations & Hooks:** Dedicated GUI settings tab `💻 Zuklappen (Lid)`, custom shell commands, and execution of `~/.config/rog-power-manager/hooks.d/on_lid_close` and `on_lid_open`.
 
 ### Fixed
 - **Notification Translations & Desktop Attribution:**

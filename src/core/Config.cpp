@@ -82,8 +82,12 @@ QJsonObject ConfigManager::getDefaultConfig() {
     lid["command_on_close"] = "";
     lid["command_on_open"] = "";
 
+    QJsonObject battery;
+    battery["charge_limit"] = 80;
+
     QJsonObject root;
     root["profiles"] = profiles;
+    root["battery"] = battery;
     root["idle"] = idle;
     root["alerts"] = alerts;
     root["lid"] = lid;
@@ -104,13 +108,26 @@ void ConfigManager::load() {
         QJsonDocument doc = QJsonDocument::fromJson(file.readAll());
         if (doc.isObject()) {
             m_data = doc.object();
+            bool modified = false;
             if (!m_data.contains("lid")) {
                 m_data["lid"] = getDefaultConfig().value("lid").toObject();
-                file.close();
-                save();
-                return;
+                modified = true;
+            }
+            if (!m_data.contains("battery")) {
+                m_data["battery"] = getDefaultConfig().value("battery").toObject();
+                modified = true;
+            } else {
+                auto bat = m_data.value("battery").toObject();
+                if (!bat.contains("charge_limit")) {
+                    bat["charge_limit"] = 80;
+                    m_data["battery"] = bat;
+                    modified = true;
+                }
             }
             file.close();
+            if (modified) {
+                save();
+            }
             return;
         }
         file.close();
@@ -133,6 +150,18 @@ void ConfigManager::save() {
 
 void ConfigManager::setData(const QJsonObject &data) {
     m_data = data;
+    save();
+}
+
+int ConfigManager::getChargeLimit() const {
+    return m_data.value("battery").toObject().value("charge_limit").toInt(80);
+}
+
+void ConfigManager::setChargeLimit(int limit) {
+    int clamped = std::clamp(limit, 20, 100);
+    auto bat = m_data.value("battery").toObject();
+    bat["charge_limit"] = clamped;
+    m_data["battery"] = bat;
     save();
 }
 

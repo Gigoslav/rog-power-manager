@@ -259,6 +259,21 @@ QWidget* SettingsDialog::createAutomationsTab() {
     auto gbAlerts = new QGroupBox("Akkustand-Warnungen & Schutz", w);
     auto fLayout2 = new QFormLayout(gbAlerts);
 
+    m_chargeLimitCombo = new QComboBox(gbAlerts);
+    m_chargeLimitCombo->addItem("60% (" + I18n::tr("lbl_lim_60") + ")", 60);
+    m_chargeLimitCombo->addItem("80% (" + I18n::tr("lbl_lim_80") + ")", 80);
+    m_chargeLimitCombo->addItem("100% (" + I18n::tr("lbl_lim_100") + ")", 100);
+
+    int curLimit = ConfigManager::instance().getChargeLimit();
+    int limIdx = m_chargeLimitCombo->findData(curLimit);
+    if (limIdx >= 0) {
+        m_chargeLimitCombo->setCurrentIndex(limIdx);
+    } else {
+        m_chargeLimitCombo->addItem(QString("%1%").arg(curLimit), curLimit);
+        m_chargeLimitCombo->setCurrentIndex(m_chargeLimitCombo->count() - 1);
+    }
+    fLayout2->addRow("Akku-Ladelimit (Hardware-Schutz):", m_chargeLimitCombo);
+
     m_lowPercent = new QSpinBox(gbAlerts);
     m_lowPercent->setRange(5, 30);
     m_lowPercent->setSuffix("%");
@@ -325,6 +340,14 @@ void SettingsDialog::saveAndApply() {
     alerts["critical_battery_percent"] = m_critPercent->value();
     alerts["on_critical_command"] = m_cmdCrit->text();
     root["alerts"] = alerts;
+
+    if (m_chargeLimitCombo) {
+        int chosenLimit = m_chargeLimitCombo->currentData().toInt();
+        auto bat = root.value("battery").toObject();
+        bat["charge_limit"] = chosenLimit;
+        root["battery"] = bat;
+        Hardware::setBatteryLimit(chosenLimit);
+    }
 
     auto lid = root.value("lid").toObject();
     if (m_lidActionBattery) lid["action_battery"] = m_lidActionBattery->currentData().toString();

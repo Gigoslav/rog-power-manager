@@ -36,6 +36,7 @@ void PowerManagerController::applyState(bool force) {
     Hardware::applyHardwareTunings(newState, prof);
     Hardware::setPowerProfile(prof);
     Hardware::setDisplayRefreshRate(hz);
+    Hardware::setBatteryLimit(ConfigManager::instance().getChargeLimit());
 
     if (Hardware::currentFanMode == "auto") {
         Hardware::setFanMode(fanMode == "auto" ? (newState == "battery" ? "silent" : (newState == "usbc" ? "balanced" : "turbo")) : fanMode);
