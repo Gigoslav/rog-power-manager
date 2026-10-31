@@ -58,6 +58,7 @@ private:
     QLineEdit *m_cmdUsbc;
     QLineEdit *m_cmdAc;
     QComboBox *m_chargeLimitCombo = nullptr;
+    QComboBox *m_refreshIntervalCombo = nullptr;
     QSpinBox *m_lowPercent;
     QLineEdit *m_cmdLow;
     QSpinBox *m_critPercent;

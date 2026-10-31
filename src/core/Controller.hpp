@@ -26,8 +26,11 @@ public:
     void setLidManager(LidManager *mgr) { m_lidMgr = mgr; }
     LidManager* lidManager() const { return m_lidMgr; }
 
+    void notifyRefreshIntervalChanged(int ms) { emit refreshIntervalChanged(ms); }
+
 signals:
     void stateApplied();
+    void refreshIntervalChanged(int ms);
 
 private:
     bool m_verbose = true;

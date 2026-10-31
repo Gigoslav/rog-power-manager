@@ -13,6 +13,7 @@ public:
 
 public slots:
     void updateTray();
+    void setRefreshInterval(int ms);
 
 private:
     void createMenu();

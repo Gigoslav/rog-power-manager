@@ -17,6 +17,9 @@ public:
     int getChargeLimit() const;
     void setChargeLimit(int limit);
 
+    int getRefreshInterval() const;
+    void setRefreshInterval(int intervalMs);
+
     void runCommand(const QString &cmd, const QMap<QString, QString> &customEnv = {});
     void runHook(const QString &hookName, const QStringList &args = {});
 

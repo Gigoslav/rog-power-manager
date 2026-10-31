@@ -9,6 +9,7 @@
 
 #include <QApplication>
 #include <QCommandLineParser>
+#include <QThread>
 #include <iostream>
 
 int main(int argc, char *argv[]) {
@@ -26,21 +27,25 @@ int main(int argc, char *argv[]) {
     QCommandLineOption optBrightness("brightness", "Set screen brightness percentage (1-100)", "pct");
     QCommandLineOption optKbd("kbd", "Set keyboard backlight level (0-3)", "level");
     QCommandLineOption optChargeLimit("charge-limit", "Set battery charge limit percentage (20-100)", "pct");
+    QCommandLineOption optRefreshRate("refresh-rate", "Set background telemetry refresh interval in ms (250-5000)", "ms");
+    QCommandLineOption optWatch("watch", "Continuously refresh live telemetry in terminal", "interval_sec");
     QCommandLineOption optLang("lang", "Override display language (de/en)", "lang");
 
     parser.addOption(optOnce);
     parser.addOption(optStatus);
+    parser.addOption(optWatch);
     parser.addOption(optFan);
     parser.addOption(optProfile);
     parser.addOption(optBrightness);
     parser.addOption(optKbd);
     parser.addOption(optChargeLimit);
+    parser.addOption(optRefreshRate);
     parser.addOption(optLang);
 
     // Create QApplication early for event loop & QCommandLineParser
     QApplication app(argc, argv);
     app.setApplicationName("rog-power-manager");
-    app.setApplicationVersion("0.4.1");
+    app.setApplicationVersion("0.4.2");
     app.setOrganizationName("Mountainhouse Software Solutions");
     app.setOrganizationDomain("mountain-house.dev");
     app.setQuitOnLastWindowClosed(false);
@@ -90,7 +95,14 @@ int main(int argc, char *argv[]) {
         return 0;
     }
 
-    if (parser.isSet(optStatus)) {
+    if (parser.isSet(optRefreshRate)) {
+        int val = std::clamp(parser.value(optRefreshRate).toInt(), 250, 5000);
+        ConfigManager::instance().setRefreshInterval(val);
+        std::cout << "[Config] Telemetry refresh interval set and saved to: " << val << " ms" << std::endl;
+        return 0;
+    }
+
+    auto printStatus = []() {
         QString src = Hardware::getPowerSource();
         QString srcLabel = (src == "ac") ? I18n::tr("ac_label") : ((src == "usbc") ? I18n::tr("usbc_label") : I18n::tr("bat_label"));
         QString prof = Hardware::getCurrentPowerProfile();
@@ -134,6 +146,23 @@ int main(int argc, char *argv[]) {
         std::cout << I18n::tr("cli_prof").arg(profDisp).toStdString() << std::endl;
         std::cout << I18n::tr("cli_panel").arg(panel.name, panel.resolution).arg(panel.currentRate).toStdString() << std::endl;
         std::cout << I18n::tr("cli_fan").arg(fanCli).toStdString() << std::endl;
+    };
+
+    if (parser.isSet(optWatch)) {
+        double intervalSec = 1.0;
+        if (!parser.value(optWatch).isEmpty()) {
+            intervalSec = std::max(0.25, parser.value(optWatch).toDouble());
+        }
+        while (true) {
+            std::cout << "\033[2J\033[H";
+            printStatus();
+            std::cout << "\n[rog-power-manager] Live-Telemetrie (" << intervalSec << "s Refresh | Beenden: Strg+C)..." << std::flush;
+            QThread::msleep(static_cast<unsigned long>(intervalSec * 1000));
+        }
+    }
+
+    if (parser.isSet(optStatus)) {
+        printStatus();
         return 0;
     }
 

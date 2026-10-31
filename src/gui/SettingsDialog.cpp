@@ -274,6 +274,22 @@ QWidget* SettingsDialog::createAutomationsTab() {
     }
     fLayout2->addRow("Akku-Ladelimit (Hardware-Schutz):", m_chargeLimitCombo);
 
+    m_refreshIntervalCombo = new QComboBox(gbAlerts);
+    m_refreshIntervalCombo->addItem("250 ms (Echtzeit / Extrem schnell)", 250);
+    m_refreshIntervalCombo->addItem("500 ms (Live / Sehr schnell)", 500);
+    m_refreshIntervalCombo->addItem("1000 ms (1 Sekunde - Standard)", 1000);
+    m_refreshIntervalCombo->addItem("2000 ms (2 Sekunden - Sparsam)", 2000);
+
+    int curInterval = ConfigManager::instance().getRefreshInterval();
+    int intIdx = m_refreshIntervalCombo->findData(curInterval);
+    if (intIdx >= 0) {
+        m_refreshIntervalCombo->setCurrentIndex(intIdx);
+    } else {
+        m_refreshIntervalCombo->addItem(QString("%1 ms").arg(curInterval), curInterval);
+        m_refreshIntervalCombo->setCurrentIndex(m_refreshIntervalCombo->count() - 1);
+    }
+    fLayout2->addRow("Aktualisierungsrate (Live-Daten):", m_refreshIntervalCombo);
+
     m_lowPercent = new QSpinBox(gbAlerts);
     m_lowPercent->setRange(5, 30);
     m_lowPercent->setSuffix("%");
@@ -347,6 +363,16 @@ void SettingsDialog::saveAndApply() {
         bat["charge_limit"] = chosenLimit;
         root["battery"] = bat;
         Hardware::setBatteryLimit(chosenLimit);
+    }
+
+    if (m_refreshIntervalCombo) {
+        int chosenInterval = m_refreshIntervalCombo->currentData().toInt();
+        auto gen = root.value("general").toObject();
+        gen["refresh_interval_ms"] = chosenInterval;
+        root["general"] = gen;
+        if (m_controller) {
+            m_controller->notifyRefreshIntervalChanged(chosenInterval);
+        }
     }
 
     auto lid = root.value("lid").toObject();

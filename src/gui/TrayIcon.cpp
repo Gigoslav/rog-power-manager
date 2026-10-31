@@ -17,11 +17,18 @@ TrayIcon::TrayIcon(PowerManagerController *controller, QObject *parent)
 
     m_timer = new QTimer(this);
     connect(m_timer, &QTimer::timeout, this, &TrayIcon::updateTray);
-    m_timer->start(2000);
+    m_timer->start(ConfigManager::instance().getRefreshInterval());
 
     connect(m_controller, &PowerManagerController::stateApplied, this, &TrayIcon::updateTray);
+    connect(m_controller, &PowerManagerController::refreshIntervalChanged, this, &TrayIcon::setRefreshInterval);
 
     updateTray();
+}
+
+void TrayIcon::setRefreshInterval(int ms) {
+    if (m_timer) {
+        m_timer->setInterval(std::clamp(ms, 250, 5000));
+    }
 }
 
 QIcon TrayIcon::createWattIcon(const Hardware::PowerTelemetry &tel) {

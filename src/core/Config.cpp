@@ -85,7 +85,11 @@ QJsonObject ConfigManager::getDefaultConfig() {
     QJsonObject battery;
     battery["charge_limit"] = 80;
 
+    QJsonObject general;
+    general["refresh_interval_ms"] = 1000;
+
     QJsonObject root;
+    root["general"] = general;
     root["profiles"] = profiles;
     root["battery"] = battery;
     root["idle"] = idle;
@@ -109,6 +113,17 @@ void ConfigManager::load() {
         if (doc.isObject()) {
             m_data = doc.object();
             bool modified = false;
+            if (!m_data.contains("general")) {
+                m_data["general"] = getDefaultConfig().value("general").toObject();
+                modified = true;
+            } else {
+                auto gen = m_data.value("general").toObject();
+                if (!gen.contains("refresh_interval_ms")) {
+                    gen["refresh_interval_ms"] = 1000;
+                    m_data["general"] = gen;
+                    modified = true;
+                }
+            }
             if (!m_data.contains("lid")) {
                 m_data["lid"] = getDefaultConfig().value("lid").toObject();
                 modified = true;
@@ -162,6 +177,18 @@ void ConfigManager::setChargeLimit(int limit) {
     auto bat = m_data.value("battery").toObject();
     bat["charge_limit"] = clamped;
     m_data["battery"] = bat;
+    save();
+}
+
+int ConfigManager::getRefreshInterval() const {
+    return m_data.value("general").toObject().value("refresh_interval_ms").toInt(1000);
+}
+
+void ConfigManager::setRefreshInterval(int intervalMs) {
+    int clamped = std::clamp(intervalMs, 250, 5000);
+    auto gen = m_data.value("general").toObject();
+    gen["refresh_interval_ms"] = clamped;
+    m_data["general"] = gen;
     save();
 }
 

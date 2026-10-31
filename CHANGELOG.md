@@ -3,6 +3,17 @@
 All notable changes to **`rog-power-manager`** are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.2] - 2026-10-31
+### Added
+- **Configurable & High-Speed Live Telemetry Refresh Rate:**
+  - Increased default telemetry refresh rate from 2000 ms to **1000 ms (1 Sekunde)** for rapid live updates.
+  - Added configurable refresh rates: 250 ms (realtime), 500 ms (ultra-fast), 1000 ms (standard), 2000 ms (power-saving).
+  - Added "Aktualisierungsrate (Live-Daten)" setting to GUI Settings dialog (`SettingsDialog`).
+  - Added CLI flag `--refresh-rate <ms>` (250–5000 ms) to set and persist telemetry intervals.
+  - Added interactive CLI live monitoring mode: `rog-power-manager --watch [seconds]`.
+- **Performance & Polling Optimization:**
+  - Optimized `PowerManagerController::applyState` to return immediately when power source hasn't changed, eliminating redundant subprocess overhead (`kscreen-doctor` and `powerprofilesctl`).
+
 ## [0.4.1] - 2026-10-31
 ### Added
 - **Persistent Battery Charge Limit across Reboots & State Changes:**

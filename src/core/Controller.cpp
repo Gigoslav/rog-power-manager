@@ -17,8 +17,6 @@ void PowerManagerController::applyState(bool force) {
     bool stateChanged = (m_lastState.isEmpty() || m_lastState != newState);
 
     if (!stateChanged && !force) {
-        m_cachedPanel = Hardware::getPanelInfo();
-        m_cachedProfile = Hardware::getCurrentPowerProfile();
         return;
     }
 
